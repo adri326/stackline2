@@ -18,20 +18,13 @@ Cloning a `FullTile` results in a `FullTile` that does not have any signal.
 pub struct FullTile {
     cell: Option<AnyTile>,
     signal: Option<Rc<Signal>>,
+    // TODO: state
 }
 
+// SAFETY: should not implement Tile
 impl FullTile {
     pub fn new(cell: Option<AnyTile>) -> Self {
         Self { cell, signal: None }
-    }
-
-    pub fn update(&mut self, world: &mut World, pos: (usize, usize)) {
-        match self.cell {
-            Some(ref mut tile) => {
-                tile.update(world, &mut self.signal, pos);
-            }
-            None => {}
-        }
     }
 
     pub fn accepts_signal(&self, direction: Direction) -> bool {
@@ -42,7 +35,7 @@ impl FullTile {
     }
 
     /// Returns Some(signal) iff self.cell.is_some()
-    pub fn set_signal(&mut self, signal: Signal) -> Option<Weak<Signal>> {
+    pub(crate) fn set_signal(&mut self, signal: Signal) -> Option<Weak<Signal>> {
         if self.cell.is_some() {
             let rc = Rc::new(signal);
             let weak = Rc::downgrade(&rc);
@@ -51,6 +44,24 @@ impl FullTile {
         } else {
             None
         }
+    }
+
+    /// Returns the internal state of this full tile
+    pub fn get<'b>(&'b self) -> Option<&'b AnyTile> {
+        self.cell.as_ref()
+    }
+
+    /// Returns the signal of this tile
+    pub fn signal<'b>(&'b self) -> Option<&'b Rc<Signal>> {
+        self.signal.as_ref()
+    }
+
+    pub(crate) fn take_signal(&mut self) -> Option<Rc<Signal>> {
+        std::mem::take(&mut self.signal)
+    }
+
+    pub(crate) fn get_mut<'b>(&'b mut self) -> Option<&'b mut AnyTile> {
+        self.cell.as_mut()
     }
 }
 
@@ -61,7 +72,12 @@ impl Default for FullTile {
 }
 
 pub trait Tile: DynClone + std::fmt::Debug {
-    fn update(&mut self, world: &mut World, signal: &mut Option<Rc<Signal>>, pos: (usize, usize));
+    /// Function to be called when the tile needs to update its internal state.
+    /// During the "update" phase, the tile may access its signal and the other tiles immutably.
+    fn update<'b>(&'b mut self, _context: UpdateContext<'b>) {}
+
+    /// Function that will be called if the tile has a signal.
+    fn transmit<'b>(&'b self, signal: Rc<Signal>, context: TransmitContext<'b>);
 
     /// Should return true iff the tile accepts a signal travelling in `Direction`
     fn accepts_signal(&self, _direction: Direction) -> bool {
@@ -73,8 +89,8 @@ pub trait Tile: DynClone + std::fmt::Debug {
 pub struct AnyTile(Box<dyn Tile>);
 
 impl AnyTile {
-    fn update(&mut self, world: &mut World, signal: &mut Option<Rc<Signal>>, pos: (usize, usize)) {
-        self.0.update(world, signal, pos)
+    fn update<'b>(&'b mut self, ctx: UpdateContext<'b>) {
+        self.0.update(ctx)
     }
 
     fn accepts_signal(&self, direction: Direction) -> bool {

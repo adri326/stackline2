@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::num::NonZeroUsize;
 use std::rc::Weak;
 
@@ -11,44 +10,36 @@ use tile::*;
 mod signal;
 pub use signal::*;
 
+pub mod context;
+use context::*;
+
 pub struct World {
-    tiles: Vec<RefCell<FullTile>>,
+    panes: Vec<Pane>,
+}
+
+pub struct Pane {
+    tiles: Vec<FullTile>,
     width: NonZeroUsize,
     height: NonZeroUsize,
 
     signals: Vec<Weak<Signal>>,
 }
 
-impl World {
+impl Pane {
     pub fn empty(width: usize, height: usize) -> Option<Self> {
         // TODO: check that width * height is a valid usize
 
         Some(Self {
             width: width.try_into().ok()?,
             height: height.try_into().ok()?,
-            tiles: vec![RefCell::new(FullTile::default()); width * height],
+            tiles: vec![FullTile::default(); width * height],
 
             signals: vec![],
         })
     }
 
-    pub fn send_signal(
-        &mut self,
-        position: (usize, usize),
-        signal: Signal,
-    ) -> Option<Weak<Signal>> {
-        let tile = self.get(position)?;
-        let weak = {
-            let mut guard = tile.try_borrow_mut().ok()?;
-            guard.set_signal(signal)?
-        };
-
-        self.signals.push(weak.clone());
-
-        Some(weak)
-    }
-
     /// Returns `Some((x + Δx, y + Δy))` iff `(x + Δx, y + Δy)` is inside the world
+    // SAFETY: this function may *not* access `self.signals`, `∀x, self.tiles[x].cell` or `∀x, self.tiles[x].signal`
     #[inline]
     pub fn offset(&self, position: (usize, usize), offset: (i8, i8)) -> Option<(usize, usize)> {
         if offset.0 < 0 && (-offset.0) as usize > position.0
@@ -71,12 +62,21 @@ impl World {
     }
 
     #[inline]
-    pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<&'b RefCell<FullTile>> {
+    pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<&'b FullTile> {
         if !self.in_bounds(position) {
             return None;
         }
 
         self.tiles.get(position.1 * self.width.get() + position.0)
+    }
+
+    #[inline]
+    pub fn get_mut<'b>(&'b mut self, position: (usize, usize)) -> Option<&'b mut FullTile> {
+        if !self.in_bounds(position) {
+            return None;
+        }
+
+        self.tiles.get_mut(position.1 * self.width.get() + position.0)
     }
 
     #[inline]
