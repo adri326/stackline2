@@ -16,7 +16,7 @@ use super::*;
 // SAFETY: `pane[position].cell` is borrow mutably, while a pointer to the original Pane is kept;
 // thus, no other reference to `pane[position].cell` may be done
 pub struct UpdateContext<'a> {
-    pub position: (usize, usize),
+    position: (usize, usize),
     pane: *const Pane,
 
     phantom: PhantomData<&'a Pane>,
@@ -36,6 +36,11 @@ impl<'a> UpdateContext<'a> {
         };
 
         Some((res, tile))
+    }
+
+    #[inline]
+    pub fn position(&self) -> (usize, usize) {
+        self.position
     }
 
     #[inline]
@@ -87,7 +92,7 @@ impl<'a> UpdateContext<'a> {
 // SAFETY: this structures ensures that it has exlusive, mutable access to `∀x, pane[x].signal` and `pane.signals`.
 // Other parts of `pane` may be accessed and returned immutably.
 pub struct TransmitContext<'a> {
-    pub position: (usize, usize),
+    position: (usize, usize),
     pane: *mut Pane,
 
     phantom: PhantomData<&'a mut Pane>,
@@ -112,6 +117,11 @@ impl<'a> TransmitContext<'a> {
         Some((res, tile, signal))
     }
 
+    #[inline]
+    pub fn position(&self) -> (usize, usize) {
+        self.position
+    }
+
     /// Returns an immutable reference to the [tile](AnyTile) at `pos` in the current [Pane].
     /// Returns `None` if that tile does not exist.
     #[inline]
@@ -124,22 +134,12 @@ impl<'a> TransmitContext<'a> {
 
     /// Sends a signal to be stored in a cell (may be the current one), the signal overrides that of the other cell
     /// Returns true if the signal was stored in a cell, false otherwise
-    pub fn send<'b>(&'b self, pos: (usize, usize), signal: Signal) -> bool where 'a: 'b {
+    pub fn send<'b>(&'b self, pos: (usize, usize), signal: Signal) -> Option<Weak<Signal>> where 'a: 'b {
         // SAFETY: we do not return any reference to any data borrowed in this function
         // SAFETY: we only access `pane[pos].signal` and `pane.signals`
         let pane = unsafe { self.pane_mut() };
 
-        match pane.get_mut(pos) {
-            Some(ref mut tile) => {
-                if let Some(weak) = tile.set_signal(signal) {
-                    pane.signals.push(weak);
-                    true
-                } else {
-                    false
-                }
-            }
-            _ => false
-        }
+        pane.set_signal(pos, signal)
     }
 
     /// Returns `Some((position.x + Δx, position.y + Δy))` iff `(x + Δx, y + Δy)` is inside the pane
@@ -163,5 +163,47 @@ impl<'a> TransmitContext<'a> {
     #[inline]
     unsafe fn pane_mut<'b>(&'b self) -> &'b mut Pane {
         &mut *self.pane
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_update_exclusivity() {
+        // Check that UpdateContext does not allow any other reference to `tiles[position].cell` to be made
+        let mut pane = Pane::empty(4, 4).unwrap();
+        let mut tile = FullTile::from(Wire::new(Orientation::Any));
+        tile.set_signal(Signal::empty((1, 2), Direction::Up)).unwrap();
+        *pane.get_mut((1, 2)).unwrap() = tile;
+
+        let (ctx, _tile) = UpdateContext::new(&mut pane, (1, 2)).unwrap();
+
+        assert_eq!(ctx.position(), (1, 2));
+
+        let tile_self: Option<&FullTile> = ctx.get((1, 2)); // The FullTile may not be read
+        assert!(tile_self.is_none());
+
+        assert!(ctx.signal().is_some()); // Our Signal may be read, though
+    }
+
+    #[test]
+    fn test_transmit() {
+        let mut pane = Pane::empty(4, 4).unwrap();
+        let mut tile = FullTile::from(Wire::new(Orientation::Any));
+        tile.set_signal(Signal::empty((1, 2), Direction::Up)).unwrap();
+        *pane.get_mut((1, 2)).unwrap() = tile;
+
+        let (ctx, _tile, _signal) = TransmitContext::new(&mut pane, (1, 2)).unwrap();
+
+        assert_eq!(ctx.position(), (1, 2));
+
+        let tile_self: Option<&AnyTile> = ctx.get((1, 2));
+        assert!(tile_self.is_some()); // We may read our AnyTile, as they are under an immutable borrow
+
+        // Check that the signal was dropped
+        std::mem::drop(ctx);
+        assert!(pane.get((1, 2)).unwrap().signal().is_none());
     }
 }
