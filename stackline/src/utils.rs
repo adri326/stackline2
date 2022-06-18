@@ -1,4 +1,5 @@
-/// Represents one or many undirected orientation(s), since we are in a 2D grid, this may either be [Horizontal], [Vertical] or both ([Any])
+/// Represents one or many undirected orientation(s), since we are in a 2D grid,
+/// this may either be [Horizontal](Orientation::Horizontal), [Vertical](Orientation::Vertical) or both ([Any](Orientation::Any))
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Orientation {
@@ -18,7 +19,7 @@ pub enum Direction {
 }
 
 /// Represents the state that a cell may be in. The usual state transition schema is `Idle → Active → Dormant → Idle`.
-/// A tile will only be [`update`d](Tile::update) if it is in the `Active` or `Dormant` state.
+/// A tile will only be [`update`d](crate::Tile::update) if it is in the `Active` or `Dormant` state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum State {
@@ -62,7 +63,7 @@ impl Orientation {
 }
 
 impl Direction {
-    /// Converts a [Direction] in a pair `(Δx, Δy)`, with [Up] being equal to `(0, -1)`
+    /// Converts a [Direction] in a pair `(Δx, Δy)`, with [Up](Direction::Up) being equal to `(0, -1)`
     #[inline]
     pub fn into_offset(self) -> (i8, i8) {
         match self {

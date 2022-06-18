@@ -130,7 +130,7 @@ pub trait Tile: DynClone + std::fmt::Debug {
 
     /// Should return true iff the tile accepts a signal travelling in `Direction`
     #[inline]
-    fn accepts_signal(&self, _direction: Direction) -> bool {
+    fn accepts_signal(&self, direction: Direction) -> bool {
         true
     }
 }

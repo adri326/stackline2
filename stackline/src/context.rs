@@ -2,16 +2,57 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use super::*;
 
-/// An UpdateContext is created for every tile update during the "update" phase,
-/// and it contains the necessary data for a tile to update its internal state.
-///
-/// During the update phase, a tile may only access itself mutably, through the mutable
-/// reference it was initially passed through its [`update`](Tile::update) method.
-/// All accesses to other tiles and all signals must be done immutably.
-///
-/// It thus *cannot* access itself through this context structure, although it may read its
-/// signal here.
-/// It *can* access the other tiles and their signals immutably.
+/** An `UpdateContext` is created for every tile update during the "update" phase,
+and it contains the necessary data for a tile to update its internal state.
+
+During the update phase, a tile may only access itself mutably, through the mutable
+reference it was initially passed through its [`update`](Tile::update) method.
+All accesses to other tiles and all signals must be done immutably.
+
+It thus *cannot* access itself through this context structure, although it may read its
+signal here.
+It *can* access the other tiles and their signals immutably.
+
+## Examples
+
+This type is most commonly found when implementing [`Tile::update`]:
+
+```
+# use stackline::{*, tile::Tile, utils::State, context::*};
+#
+#[derive(Clone, Debug)]
+struct MyTile(u8);
+
+impl Tile for MyTile {
+    fn update<'b>(&'b mut self, ctx: UpdateContext<'b>) {
+        // Counts the number of active neighbors
+        let mut active_neighbors = 0;
+
+        for dy in -1..1 {
+            for dx in -1..1 {
+                let offset = (dx, dy);
+                if offset == (0, 0) {
+                    continue;
+                }
+
+                // Get tile next to us:
+                if let Some((_position, tile)) = ctx.get_offset(offset) {
+                    if tile.state() == State::Active {
+                        active_neighbors += 1;
+                    }
+                }
+            }
+        }
+
+        self.0 = active_neighbors;
+        ctx.next_state(); // Go dormant
+    }
+#
+#    fn transmit<'b>(&'b self, signal: std::rc::Rc<Signal>, ctx: TransmitContext<'b>) {}
+}
+```
+
+**/
 
 // SAFETY: `pane[position].cell` is borrow mutably, while a pointer to the original Pane is kept;
 // thus, no other reference to `pane[position].cell` may be done
@@ -24,6 +65,7 @@ pub struct UpdateContext<'a> {
 }
 
 impl<'a> UpdateContext<'a> {
+    /// Creates a new context, returning the only mutable reference to `pane[position].cell` and the `UpdateContext`.
     #[inline]
     pub(crate) fn new(pane: &'a mut Pane, position: (usize, usize)) -> Option<(Self, &'a mut AnyTile)> {
 
@@ -40,11 +82,13 @@ impl<'a> UpdateContext<'a> {
         Some((res, tile.as_mut()?))
     }
 
+    /// Returns the position of the currently updated tile.
     #[inline]
     pub fn position(&self) -> (usize, usize) {
         self.position
     }
 
+    /// Returns the [signal](crate::FullTile::signal) of the currently updated tile.
     #[inline]
     pub fn signal<'b>(&'b self) -> Option<&'b Rc<Signal>> where 'a: 'b {
         let pane = unsafe { self.pane() };
@@ -53,16 +97,19 @@ impl<'a> UpdateContext<'a> {
         pane.get(self.position).unwrap().signal()
     }
 
+    /// Returns the state of the current tile.
     #[inline]
     pub fn state(&self) -> State {
         *self.state
     }
 
+    /// Sets the state of the current tile to `state`.
     #[inline]
     pub fn set_state(&mut self, state: State) {
         *self.state = state;
     }
 
+    /// Sets the state of the current tile to `state.next()`
     #[inline]
     pub fn next_state(&mut self) {
         *self.state = self.state.next();
@@ -110,8 +157,8 @@ impl<'a> UpdateContext<'a> {
 /// and it contains the necessary data for a tile to transmit its internal signal to other tiles.
 ///
 /// During this phase, the tile may access itself through an immutable borrow and its signal through an owned reference.
-/// It may access the other tiles immutably, but it cannot access the other signals.
-/// It can read and modify any tile's state.
+/// It *can* access the other tiles immutably, but it *cannot* access the other signals.
+/// It *can* read and modify any tile's state.
 
 // SAFETY: this structures ensures that it has exlusive, mutable access to `∀x, pane[x].signal, pane[x].state` and `pane.signals`.
 // Other parts of `pane` may be accessed and returned immutably.
@@ -141,6 +188,7 @@ impl<'a> TransmitContext<'a> {
         Some((res, tile, signal))
     }
 
+    /// Returns the position of the current tile
     #[inline]
     pub fn position(&self) -> (usize, usize) {
         self.position
