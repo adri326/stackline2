@@ -65,6 +65,10 @@ impl Pane {
         self.tiles.get_mut(position.1 * self.width.get() + position.0)
     }
 
+    /// Sets the signal for the tile at `position` to `signal`.
+    /// Returns `Some` iff:
+    /// - the tile exists
+    /// - the tile accepts a signal (ie. it isn't empty)
     // SAFETY: may only access `self[pos].signal` and `self.signals`
     #[inline]
     pub fn set_signal(&mut self, position: (usize, usize), signal: Signal) -> Option<Weak<Signal>> {
@@ -87,7 +91,17 @@ impl Pane {
         Some(())
     }
 
-    // TODO: update_all (requires FullTile::state)
+    pub fn update_all(&mut self) {
+        for y in 0..self.height.get() {
+            for x in 0..self.width.get() {
+                if let Some((ctx, tile)) = UpdateContext::new(self, (x, y)) {
+                    if ctx.state() != State::Idle {
+                        tile.update(ctx);
+                    }
+                }
+            }
+        }
+    }
 
     #[inline]
     pub fn transmit(&mut self, position: (usize, usize)) -> Option<()> {

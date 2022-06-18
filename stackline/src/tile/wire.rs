@@ -12,16 +12,15 @@ impl Wire {
 }
 
 impl Tile for Wire {
-    fn transmit<'b>(&'b self, signal: Rc<Signal>, context: TransmitContext<'b>) {
+    fn transmit<'b>(&'b self, signal: Rc<Signal>, mut context: TransmitContext<'b>) {
         for &direction in self.0.into_directions() {
             if direction == signal.direction().opposite() {
                 continue;
             }
 
-            if let Some(new_pos) = context.offset(direction.into_offset()) {
-                let tile = context.get(new_pos);
-                if tile.map(|t| t.accepts_signal(direction)).unwrap_or(false) {
-                    context.send(new_pos, signal.clone_move(direction).unwrap());
+            if let Some(pos) = context.offset(direction.into_offset()) {
+                if context.accepts_signal(pos, direction) {
+                    context.send(pos, signal.clone_move(direction).unwrap_or_else(|| unreachable!()));
                 }
             }
         }
@@ -41,18 +40,15 @@ impl Diode {
     }
 }
 
-// impl Tile for Diode {
-//     fn update(&mut self, world: &mut World, signal: &mut Option<Rc<Signal>>, pos: (usize, usize)) {
-//         if let Some(signal) = std::mem::take(signal) {
-//             if let Some(new_pos) = world.offset(pos, self.0.into_offset()) {
-//                 let tile = world.get(new_pos).unwrap();
-//                 if tile.borrow().accepts_signal(self.0) {
-//                     world.send_signal(new_pos, (*signal).clone_with_dir(self.0)).unwrap();
-//                 }
-//             }
-//         }
-//     }
-// }
+impl Tile for Diode {
+    fn transmit<'b>(&'b self, signal: Rc<Signal>, mut context: TransmitContext<'b>) {
+        if let Some(pos) = context.offset(self.0.into_offset()) {
+            if context.accepts_signal(pos, self.0) {
+                context.send(pos, signal.clone_move(self.0).unwrap_or_else(|| unreachable!()));
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -70,6 +66,7 @@ mod test {
         // Test the signal going from left to right
         test_set_signal!(pane, (0, 0), Direction::Right);
 
+        pane.update_all();
         pane.transmit_all();
 
         assert_signal!(pane, (1, 0));
@@ -77,6 +74,7 @@ mod test {
         assert_no_signal!(pane, (2, 0));
         assert_no_signal!(pane, (1, 1));
 
+        pane.update_all();
         pane.transmit_all();
 
         assert_signal!(pane, (2, 0));
@@ -84,14 +82,20 @@ mod test {
         assert_no_signal!(pane, (0, 0));
         assert_no_signal!(pane, (1, 0));
 
+        pane.update_all();
         pane.transmit_all();
         for (_, _, tile) in pane.tiles() {
             assert!(tile.signal().is_none());
         }
 
+        // Let the simulation cool down
+        pane.update_all();
+        pane.update_all();
+
         // Test the signal going from right to left
         test_set_signal!(pane, (2, 0), Direction::Left);
 
+        pane.update_all();
         pane.transmit_all();
 
         assert_signal!(pane, (1, 0));
@@ -99,6 +103,7 @@ mod test {
         assert_no_signal!(pane, (2, 0));
         assert_no_signal!(pane, (1, 1));
 
+        pane.update_all();
         pane.transmit_all();
 
         assert_signal!(pane, (0, 0));

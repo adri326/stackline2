@@ -18,6 +18,7 @@ use super::*;
 pub struct UpdateContext<'a> {
     position: (usize, usize),
     pane: *const Pane,
+    state: &'a mut State,
 
     phantom: PhantomData<&'a Pane>,
 }
@@ -27,15 +28,16 @@ impl<'a> UpdateContext<'a> {
     pub(crate) fn new(pane: &'a mut Pane, position: (usize, usize)) -> Option<(Self, &'a mut AnyTile)> {
 
         let ptr: *const Pane = &*pane;
-        let tile = pane.get_mut(position)?.get_mut()?;
+        let (tile, _signal, state) = pane.get_mut(position)?.into_raw_mut();
 
         let res = Self {
             position,
             pane: ptr,
+            state,
             phantom: PhantomData
         };
 
-        Some((res, tile))
+        Some((res, tile.as_mut()?))
     }
 
     #[inline]
@@ -49,6 +51,21 @@ impl<'a> UpdateContext<'a> {
 
         // SAFETY: `pane[position].signal` is not borrowed mutably
         pane.get(self.position).unwrap().signal()
+    }
+
+    #[inline]
+    pub fn state(&self) -> State {
+        *self.state
+    }
+
+    #[inline]
+    pub fn set_state(&mut self, state: State) {
+        *self.state = state;
+    }
+
+    #[inline]
+    pub fn next_state(&mut self) {
+        *self.state = self.state.next();
     }
 
     /// Returns an immutable reference to the [FullTile] at `pos` in the current [Pane].
@@ -74,6 +91,12 @@ impl<'a> UpdateContext<'a> {
         pane.offset(self.position, offset)
     }
 
+    /// Shortcut for calling both `ctx.offset(offset)` and `ctx.get(pos)`
+    #[inline]
+    pub fn get_offset<'b>(&'b self, offset: (i8, i8)) -> Option<((usize, usize), &'b FullTile)> where 'a: 'b {
+        self.offset(offset).and_then(|pos| self.get(pos).map(|tile| (pos, tile)))
+    }
+
     // SAFETY: `self.pane` originates from a `&'a mut Pane`,
     // guaranteeing that no accesses may be done outside of ours.
     // No access to `pane[position].cell` may be done!
@@ -88,8 +111,9 @@ impl<'a> UpdateContext<'a> {
 ///
 /// During this phase, the tile may access itself through an immutable borrow and its signal through an owned reference.
 /// It may access the other tiles immutably, but it cannot access the other signals.
+/// It can read and modify any tile's state.
 
-// SAFETY: this structures ensures that it has exlusive, mutable access to `∀x, pane[x].signal` and `pane.signals`.
+// SAFETY: this structures ensures that it has exlusive, mutable access to `∀x, pane[x].signal, pane[x].state` and `pane.signals`.
 // Other parts of `pane` may be accessed and returned immutably.
 pub struct TransmitContext<'a> {
     position: (usize, usize),
@@ -132,14 +156,58 @@ impl<'a> TransmitContext<'a> {
         pane.get(pos)?.get()
     }
 
-    /// Sends a signal to be stored in a cell (may be the current one), the signal overrides that of the other cell
-    /// Returns true if the signal was stored in a cell, false otherwise
-    pub fn send<'b>(&'b self, pos: (usize, usize), signal: Signal) -> Option<Weak<Signal>> where 'a: 'b {
-        // SAFETY: we do not return any reference to any data borrowed in this function
-        // SAFETY: we only access `pane[pos].signal` and `pane.signals`
+    /// Returns the state of the tile at `pos` in the current [Pane]
+    #[inline]
+    pub fn get_state(&self, pos: (usize, usize)) -> Option<State> {
+        let pane = unsafe { self.pane() };
+
+        // SAFETY: we only return a copy of pane[pos].state
+        Some(pane.get(pos)?.state())
+    }
+
+    /// Sets the state of the tile at `pos` in the current [Pane]
+    #[inline]
+    pub fn set_state(&self, pos: (usize, usize), state: State) -> Option<()> {
         let pane = unsafe { self.pane_mut() };
 
-        pane.set_signal(pos, signal)
+        // SAFETY: there are no borrows of pane[pos].state
+        pane.get_mut(pos)?.set_state(state);
+        Some(())
+    }
+
+    /// Returns whether or not the tile at `pos` accepts a signal coming from `direction`.
+    /// If the tile does not exist, then this function will return `false`.
+    #[inline]
+    pub fn accepts_signal(&self, pos: (usize, usize), direction: Direction) -> bool {
+        let pane = unsafe { self.pane() };
+
+        // SAFETY: does not access `pane[pos].signal`
+        match pane.get(pos) {
+            Some(tile) => tile.accepts_signal(direction),
+            None => false
+        }
+    }
+
+    /// Sends a signal to be stored in a cell (may be the current one), the signal overrides that of the other cell
+    /// Returns true if the signal was stored in a cell, false otherwise.
+    /// The target cell's state will be set to `Active` if it received the signal.
+    /// The signal's `position` will be set to `pos`.
+    pub fn send<'b>(&'b mut self, pos: (usize, usize), mut signal: Signal) -> Option<Weak<Signal>> where 'a: 'b {
+        // SAFETY: we do not return any reference to any data borrowed in this function
+        // SAFETY: we only access `pane[pos].signal`, `pane[pos].state` and `pane.signals`
+        let pane = unsafe { self.pane_mut() };
+
+        signal.set_position(pos);
+
+        match pane.set_signal(pos, signal) {
+            Some(signal) => {
+                // SAFETY: we only access `pane[pos].state`
+                pane.get_mut(pos).unwrap_or_else(|| unreachable!()).set_state(State::Active);
+
+                Some(signal)
+            }
+            None => None
+        }
     }
 
     /// Returns `Some((position.x + Δx, position.y + Δy))` iff `(x + Δx, y + Δy)` is inside the pane

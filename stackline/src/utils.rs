@@ -17,6 +17,16 @@ pub enum Direction {
     Right,
 }
 
+/// Represents the state that a cell may be in. The usual state transition schema is `Idle → Active → Dormant → Idle`.
+/// A tile will only be [`update`d](Tile::update) if it is in the `Active` or `Dormant` state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum State {
+    Idle,
+    Active,
+    Dormant,
+}
+
 const HORIZONTAL: [Direction; 2] = [Direction::Left, Direction::Right];
 const VERTICAL: [Direction; 2] = [Direction::Up, Direction::Down];
 const ANY: [Direction; 4] = [
@@ -75,6 +85,34 @@ impl Direction {
     }
 }
 
+impl State {
+    /// Rotates the state:
+    /// - `Idle → Active`
+    /// - `Active → Dormant`
+    /// - `Dormant → Idle`
+    pub fn next(self) -> Self {
+        match self {
+            State::Idle => State::Active,
+            State::Active => State::Dormant,
+            State::Dormant => State::Idle,
+        }
+    }
+
+    /// Returns true if `Idle`
+    pub fn accepts_signal(self) -> bool {
+        match self {
+            State::Idle => true,
+            _ => false,
+        }
+    }
+}
+
+impl Default for State {
+    fn default() -> Self {
+        State::Idle
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -91,5 +129,24 @@ mod test {
                 assert!(orientation.contains(*direction));
             }
         }
+    }
+
+    #[test]
+    fn test_state_next_rotate_3() {
+        let state = State::default();
+
+        assert_eq!(state, State::Idle);
+        assert!(state.accepts_signal());
+
+        let state = state.next();
+        assert_eq!(state, State::Active);
+        assert!(!state.accepts_signal());
+
+        let state = state.next();
+        assert_eq!(state, State::Dormant);
+        assert!(!state.accepts_signal());
+
+        let state = state.next();
+        assert_eq!(state, State::Idle);
     }
 }

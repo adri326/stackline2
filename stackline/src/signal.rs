@@ -33,4 +33,8 @@ impl Signal {
     pub fn position(&self) -> (usize, usize) {
         self.position
     }
+
+    pub(crate) fn set_position(&mut self, position: (usize, usize)) {
+        self.position = position;
+    }
 }

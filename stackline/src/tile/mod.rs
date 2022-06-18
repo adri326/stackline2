@@ -18,18 +18,23 @@ Cloning a `FullTile` results in a `FullTile` that does not have any signal.
 pub struct FullTile {
     cell: Option<AnyTile>,
     signal: Option<Rc<Signal>>,
-    // TODO: state
+    state: State,
 }
 
 // SAFETY: should not implement Tile
 impl FullTile {
     pub fn new(cell: Option<AnyTile>) -> Self {
-        Self { cell, signal: None }
+        Self {
+            cell,
+            signal: None,
+            state: State::default()
+        }
     }
 
+    // SAFETY: must not access `self.signal`
     pub fn accepts_signal(&self, direction: Direction) -> bool {
         match self.cell {
-            Some(ref tile) => tile.accepts_signal(direction),
+            Some(ref tile) => self.state.accepts_signal() && tile.accepts_signal(direction),
             None => false,
         }
     }
@@ -52,6 +57,12 @@ impl FullTile {
         self.cell.as_ref()
     }
 
+    /// Returns a mutable reference to the internal state of this tile
+    #[inline]
+    pub fn get_mut<'b>(&'b mut self) -> Option<&'b mut AnyTile> {
+        self.cell.as_mut()
+    }
+
     /// Returns the signal of this tile
     #[inline]
     pub fn signal<'b>(&'b self) -> Option<&'b Rc<Signal>> {
@@ -59,13 +70,29 @@ impl FullTile {
     }
 
     #[inline]
-    pub(crate) fn take_signal(&mut self) -> Option<Rc<Signal>> {
+    pub fn take_signal(&mut self) -> Option<Rc<Signal>> {
         std::mem::take(&mut self.signal)
     }
 
+    // SAFETY: may only access `self.state`
     #[inline]
-    pub(crate) fn get_mut<'b>(&'b mut self) -> Option<&'b mut AnyTile> {
-        self.cell.as_mut()
+    pub fn state(&self) -> State {
+        self.state
+    }
+
+    // SAFETY: may only access `self.state`
+    #[inline]
+    pub fn set_state(&mut self, state: State) {
+        self.state = state
+    }
+
+    #[inline]
+    pub fn next_state(&mut self) {
+        self.state = self.state.next();
+    }
+
+    pub fn into_raw_mut<'b>(&'b mut self) -> (&'b mut Option<AnyTile>, &'b mut Option<Rc<Signal>>, &'b mut State) {
+        (&mut self.cell, &mut self.signal, &mut self.state)
     }
 }
 
@@ -94,7 +121,9 @@ pub trait Tile: DynClone + std::fmt::Debug {
     /// Function to be called when the tile needs to update its internal state.
     /// During the "update" phase, the tile may access its signal and the other tiles immutably.
     #[inline]
-    fn update<'b>(&'b mut self, _context: UpdateContext<'b>) {}
+    fn update<'b>(&'b mut self, mut context: UpdateContext<'b>) {
+        context.next_state();
+    }
 
     /// Function that will be called if the tile has a signal.
     fn transmit<'b>(&'b self, signal: Rc<Signal>, context: TransmitContext<'b>);
