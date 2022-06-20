@@ -24,7 +24,7 @@ This type is most commonly found when implementing [`Tile::update`]:
 struct MyTile(u8);
 
 impl Tile for MyTile {
-    fn update<'b>(&'b mut self, ctx: UpdateContext<'b>) {
+    fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
         // Counts the number of active neighbors
         let mut active_neighbors = 0;
 
@@ -45,7 +45,7 @@ impl Tile for MyTile {
         }
 
         self.0 = active_neighbors;
-        ctx.next_state(); // Go dormant
+        ctx.next_state(); // Become dormant
     }
 #
 #    fn transmit<'b>(&'b self, signal: std::rc::Rc<Signal>, ctx: TransmitContext<'b>) {}

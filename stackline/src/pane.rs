@@ -91,7 +91,8 @@ impl Pane {
         Some(())
     }
 
-    pub fn update_all(&mut self) {
+    /// Calls [`Pane::update`] on all non-empty, non-idle tiles
+    fn update_all(&mut self) {
         for y in 0..self.height.get() {
             for x in 0..self.width.get() {
                 if let Some((ctx, tile)) = UpdateContext::new(self, (x, y)) {
@@ -112,7 +113,8 @@ impl Pane {
         Some(())
     }
 
-    pub fn transmit_all(&mut self) {
+    /// Calls [`Pane::transmit`] on all tiles with a signal
+    fn transmit_all(&mut self) {
         // TODO: store a second buffer and perform swap reads
         for signal in std::mem::replace(&mut self.signals, vec![]) {
             if let Some(upgraded) = signal.upgrade() {
@@ -122,9 +124,24 @@ impl Pane {
         }
     }
 
+    /// Runs a single simulation step, which consists of:
+    /// - an update phase, which mutates the inner state of [active](State::Active)] cells by calling [`Tile::update`]
+    /// - a transmit phase, which mutates and moves signals between cells by calling [`Tile::transmit`]
+    pub fn step(&mut self) {
+        self.update_all();
+        self.transmit_all();
+    }
+
     /// Returns an iterator over the tiles and their coordinates
     #[inline]
     pub fn tiles<'b>(&'b self) -> impl Iterator<Item=(usize, usize, &'b FullTile)> + 'b {
         self.tiles.iter().enumerate().map(move |(i, v)| (i % self.width, i / self.width, v))
+    }
+
+    /// Returns a mutable iterator over the tiles and their coordinates
+    #[inline]
+    pub fn tiles_mut<'b>(&'b mut self) -> impl Iterator<Item=(usize, usize, &'b mut FullTile)> + 'b {
+        let width = self.width;
+        self.tiles.iter_mut().enumerate().map(move |(i, v)| (i % width, i / width, v))
     }
 }
