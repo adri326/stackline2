@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::rc::Rc;
 use super::*;
 
 /** An `UpdateContext` is created for every tile update during the "update" phase,
@@ -48,7 +47,7 @@ impl Tile for MyTile {
         ctx.next_state(); // Become dormant
     }
 #
-#    fn transmit<'b>(&'b self, signal: std::rc::Rc<Signal>, ctx: TransmitContext<'b>) {}
+#    fn transmit<'b>(&'b self, signal: Signal, ctx: TransmitContext<'b>) {}
 }
 ```
 
@@ -90,7 +89,7 @@ impl<'a> UpdateContext<'a> {
 
     /// Returns the [signal](crate::FullTile::signal) of the currently updated tile.
     #[inline]
-    pub fn signal<'b>(&'b self) -> Option<&'b Rc<Signal>> where 'a: 'b {
+    pub fn signal<'b>(&'b self) -> Option<&'b Signal> where 'a: 'b {
         let pane = unsafe { self.pane() };
 
         // SAFETY: `pane[position].signal` is not borrowed mutably
@@ -170,7 +169,7 @@ pub struct TransmitContext<'a> {
 }
 
 impl<'a> TransmitContext<'a> {
-    pub(crate) fn new(pane: &'a mut Pane, position: (usize, usize)) -> Option<(Self, &'a AnyTile, Rc<Signal>)> {
+    pub(crate) fn new(pane: &'a mut Pane, position: (usize, usize)) -> Option<(Self, &'a AnyTile, Signal)> {
         let ptr: *mut Pane = &mut *pane;
         // SAFETY: no mutable accesses to `∀x, pane[x].cell` are made by `TransmitContext`
         let tile: &AnyTile = unsafe {
@@ -240,22 +239,18 @@ impl<'a> TransmitContext<'a> {
     /// Returns true if the signal was stored in a cell, false otherwise.
     /// The target cell's state will be set to `Active` if it received the signal.
     /// The signal's `position` will be set to `pos`.
-    pub fn send<'b>(&'b mut self, pos: (usize, usize), mut signal: Signal) -> Option<Weak<Signal>> where 'a: 'b {
+    pub fn send<'b>(&'b mut self, pos: (usize, usize), mut signal: Signal) -> Option<()> where 'a: 'b {
         // SAFETY: we do not return any reference to any data borrowed in this function
         // SAFETY: we only access `pane[pos].signal`, `pane[pos].state` and `pane.signals`
         let pane = unsafe { self.pane_mut() };
 
         signal.set_position(pos);
 
-        match pane.set_signal(pos, signal) {
-            Some(signal) => {
-                // SAFETY: we only access `pane[pos].state`
-                pane.get_mut(pos).unwrap_or_else(|| unreachable!()).set_state(State::Active);
+        pane.set_signal(pos, signal)?;
+        // SAFETY: we only access `pane[pos].state`
+        pane.get_mut(pos).unwrap_or_else(|| unreachable!()).set_state(State::Active);
 
-                Some(signal)
-            }
-            None => None
-        }
+        Some(())
     }
 
     /// Returns `Some((position.x + Δx, position.y + Δy))` iff `(x + Δx, y + Δy)` is inside the pane

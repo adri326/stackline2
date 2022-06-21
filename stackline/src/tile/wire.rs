@@ -12,7 +12,7 @@ impl Wire {
 }
 
 impl Tile for Wire {
-    fn transmit<'b>(&'b self, signal: Rc<Signal>, mut context: TransmitContext<'b>) {
+    fn transmit<'b>(&'b self, signal: Signal, mut context: TransmitContext<'b>) {
         for &direction in self.0.into_directions() {
             if direction == signal.direction().opposite() {
                 continue;
@@ -41,7 +41,7 @@ impl Diode {
 }
 
 impl Tile for Diode {
-    fn transmit<'b>(&'b self, signal: Rc<Signal>, mut context: TransmitContext<'b>) {
+    fn transmit<'b>(&'b self, signal: Signal, mut context: TransmitContext<'b>) {
         // Block signals coming from where the diode is looking
         if signal.direction().opposite() == self.0 {
             return;

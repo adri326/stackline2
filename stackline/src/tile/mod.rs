@@ -1,6 +1,5 @@
 use super::*;
 use dyn_clone::{clone_box, DynClone};
-use std::rc::Rc;
 
 mod wire;
 pub use wire::*;
@@ -17,7 +16,7 @@ Cloning a `FullTile` results in a `FullTile` that does not have any signal.
 #[derive(Clone, Debug)]
 pub struct FullTile {
     cell: Option<AnyTile>,
-    signal: Option<Rc<Signal>>,
+    signal: Option<Signal>,
     state: State,
 }
 
@@ -40,12 +39,10 @@ impl FullTile {
     }
 
     /// Returns Some(signal) iff self.cell.is_some()
-    pub(crate) fn set_signal(&mut self, signal: Signal) -> Option<Weak<Signal>> {
+    pub(crate) fn set_signal(&mut self, signal: Signal) -> Option<()> {
         if self.cell.is_some() {
-            let rc = Rc::new(signal);
-            let weak = Rc::downgrade(&rc);
-            self.signal = Some(rc);
-            Some(weak)
+            self.signal = Some(signal);
+            Some(())
         } else {
             None
         }
@@ -65,12 +62,12 @@ impl FullTile {
 
     /// Returns the signal of this tile
     #[inline]
-    pub fn signal<'b>(&'b self) -> Option<&'b Rc<Signal>> {
+    pub fn signal<'b>(&'b self) -> Option<&'b Signal> {
         self.signal.as_ref()
     }
 
     #[inline]
-    pub fn take_signal(&mut self) -> Option<Rc<Signal>> {
+    pub fn take_signal(&mut self) -> Option<Signal> {
         std::mem::take(&mut self.signal)
     }
 
@@ -91,7 +88,7 @@ impl FullTile {
         self.state = self.state.next();
     }
 
-    pub fn into_raw_mut<'b>(&'b mut self) -> (&'b mut Option<AnyTile>, &'b mut Option<Rc<Signal>>, &'b mut State) {
+    pub fn into_raw_mut<'b>(&'b mut self) -> (&'b mut Option<AnyTile>, &'b mut Option<Signal>, &'b mut State) {
         (&mut self.cell, &mut self.signal, &mut self.state)
     }
 }
@@ -126,7 +123,7 @@ pub trait Tile: DynClone + std::fmt::Debug {
     }
 
     /// Function that will be called if the tile has a signal.
-    fn transmit<'b>(&'b self, signal: Rc<Signal>, context: TransmitContext<'b>);
+    fn transmit<'b>(&'b self, signal: Signal, context: TransmitContext<'b>);
 
     /// Should return true iff the tile accepts a signal travelling in `Direction`
     #[inline]
@@ -151,7 +148,7 @@ impl AnyTile {
     }
 
     #[inline]
-    pub fn transmit<'b>(&'b self, signal: Rc<Signal>, context: TransmitContext<'b>) {
+    pub fn transmit<'b>(&'b self, signal: Signal, context: TransmitContext<'b>) {
         self.0.transmit(signal, context)
     }
 

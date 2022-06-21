@@ -1,5 +1,4 @@
 use std::num::NonZeroUsize;
-use std::rc::Weak;
 
 mod signal;
 pub use signal::*;

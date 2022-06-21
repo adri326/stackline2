@@ -6,7 +6,7 @@ pub struct Pane {
     width: NonZeroUsize,
     height: NonZeroUsize,
 
-    signals: Vec<Weak<Signal>>,
+    signals: Vec<(usize, usize)>,
 }
 
 impl Pane {
@@ -71,10 +71,11 @@ impl Pane {
     /// - the tile accepts a signal (ie. it isn't empty)
     // SAFETY: may only access `self[pos].signal` and `self.signals`
     #[inline]
-    pub fn set_signal(&mut self, position: (usize, usize), signal: Signal) -> Option<Weak<Signal>> {
-        let signal = self.get_mut(position)?.set_signal(signal)?;
-        self.signals.push(signal.clone());
-        Some(signal)
+    pub fn set_signal(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
+        signal.set_position(position);
+        self.get_mut(position)?.set_signal(signal)?;
+        self.signals.push(position);
+        Some(())
     }
 
     #[inline]
@@ -116,11 +117,8 @@ impl Pane {
     /// Calls [`Pane::transmit`] on all tiles with a signal
     fn transmit_all(&mut self) {
         // TODO: store a second buffer and perform swap reads
-        for signal in std::mem::replace(&mut self.signals, vec![]) {
-            if let Some(upgraded) = signal.upgrade() {
-                let position = upgraded.position();
-                let _ = self.transmit(position); // May return None if the signal was aliased
-            }
+        for position in std::mem::replace(&mut self.signals, vec![]) {
+            let _ = self.transmit(position); // May return None if the signal was aliased
         }
     }
 
