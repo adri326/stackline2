@@ -55,6 +55,21 @@ impl Pane {
         self.tiles.get(position.1 * self.width.get() + position.0)
     }
 
+    /// Returns a mutable reference to the [`Tile`] at `position`.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use stackline::prelude::*;
+    /// use stackline::tile::Wire;
+    ///
+    /// let mut pane = Pane::empty(4, 4).unwrap();
+    ///
+    /// pane.set_tile((0, 0), Wire::new(Orientation::Horizontal));
+    ///
+    /// let mut tile = pane.get_mut((0, 0)).unwrap();
+    /// tile.set_state(State::Active);
+    /// ```
     #[inline]
     pub fn get_mut<'b>(&'b mut self, position: (usize, usize)) -> Option<&'b mut FullTile> {
         if !self.in_bounds(position) {
@@ -64,6 +79,17 @@ impl Pane {
         self.tiles.get_mut(position.1 * self.width.get() + position.0)
     }
 
+    /// Sets the tile at `position` to `tile`. `T` must either implement [`Tile`] or be `()`.
+    #[inline]
+    pub fn set_tile<T>(&mut self, position: (usize, usize), tile: T) -> Option<()> where FullTile: From<T> {
+        let full_tile = self.get_mut(position)?;
+
+        *full_tile = FullTile::from(tile);
+
+        Some(())
+    }
+
+    /// Returns the [`State`] of the tile at `position`, if it exists.
     #[inline]
     pub fn get_state(&self, position: (usize, usize)) -> Option<State> {
         self.get(position).map(|x| x.state().clone())
@@ -76,9 +102,14 @@ impl Pane {
     #[inline]
     pub fn set_signal(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
         signal.set_position(position);
-        self.get_mut(position)?.set_signal(Some(signal))?;
-        self.signals.push(position);
-        Some(())
+        if let Some(tile) = self.get_mut(position) {
+            tile.set_signal(Some(signal))?;
+            tile.set_state(State::Active);
+            self.signals.push(position);
+            Some(())
+        } else {
+            None
+        }
     }
 
     #[inline]

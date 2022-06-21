@@ -1,10 +1,19 @@
+/*! # Stackline v2
+
+`Stackline v2` is the successor of [stackline](https://github.com/adri326/stackline), an esoteric language inspired by [Wireworld](https://mathworld.wolfram.com/WireWorld.html) and [ORCA](https://github.com/hundredrabbits/Orca).
+
+This library is the rust implementation of the core logic of the language.
+
+
+*/
+
 use std::num::NonZeroUsize;
 
-mod signal;
-pub use signal::*;
+pub mod signal;
+use signal::*;
 
-mod pane;
-pub use pane::*;
+pub mod pane;
+use pane::*;
 
 pub mod utils;
 use utils::*;
@@ -17,4 +26,14 @@ use context::*;
 
 pub struct World {
     panes: Vec<Pane>,
+}
+
+pub mod prelude {
+    pub use crate::World;
+    pub use crate::pane::Pane;
+
+    pub use crate::utils::*;
+    pub use crate::signal::Signal;
+    pub use crate::context::UpdateContext;
+    pub use crate::tile::Tile;
 }
