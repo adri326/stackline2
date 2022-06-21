@@ -3,10 +3,52 @@ use super::*;
 /** Provides an interface between a [`Tile`] and its parent [`Pane`] during [`Tile::update`].
     All actions performed through `UpdateContext` will be executed *after* all the tiles have updated.
 
+    ## Design
+
+    There are several factors that come into the design of [`UpdateContext`]:
+
+    - all of its methods are considered hot-path code, which means that allocations must be kept at a minimum
+    - all of the actions must be performed after all the tiles were updated
+    - we need mutable access to the current tile, so that it can update its internal state
+
+    ## Example
+
+    ```
+    # use stackline::{*, tile::*, context::*};
+
+    #[derive(Clone, Debug)]
+    pub struct CounterTile(usize);
+
+    impl CounterTile {
+        pub fn new() -> Self {
+            Self(0)
+        }
+    }
+
+    impl Tile for CounterTile {
+        fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
+            if let Some(signal) = ctx.take_signal() {
+                // Update the internal state
+                self.0 += 1;
+
+                // Send the signal along: first, get the offset (Δx, Δy) associated with its direction and the tile at (x+Δx,y+Δy)
+                if let Some((pos, tile)) = ctx.get_offset(signal.direction().into_offset()) {
+                    // Then, check that `tile` accepts signals
+                    if tile.accepts_signal(signal.direction()) {
+                        // Finally, send the signal
+                        ctx.send(pos, signal).unwrap_or_else(|| unreachable!());
+                    }
+                }
+            }
+        }
+    }
+
+    ```
+
     ## Safety
 
-    Because [`Tile::update`] requires a `&mut self` reference, the current [`Tile`] cannot be accessed through [`UpdateContext::get`]
-    This structure stores the state and signal of the [`FullTile`] containing the current tile, and it is still possible and safe to call [`UpdateContext::send`] on the current position.
+    Because [`Tile::update`] requires a `&mut self` reference, the current [`Tile`] cannot be accessed through [`UpdateContext::get`].
+    This structure stores the [`State`] and [`Signal`] of the [`FullTile`] containing the current tile, so these can be accessed nonetheless, and it is still possible and safe to call [`UpdateContext::send`] on the current position.
 **/
 pub struct UpdateContext<'a> {
     position: (usize, usize),
@@ -62,12 +104,7 @@ impl<'a> UpdateContext<'a> {
         std::mem::take(&mut self.signal)
     }
 
-    // #[inline]
-    // pub fn set_signal(&mut self, signal: Option<Signal>) {
-    //     *self.signal = signal;
-    // }
-
-    /// Returns the state of the current tile.
+    /// Returns the [`State`] of the current tile.
     #[inline]
     pub fn state(&self) -> State {
         self.state
