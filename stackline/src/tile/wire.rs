@@ -12,17 +12,23 @@ impl Wire {
 }
 
 impl Tile for Wire {
-    fn transmit<'b>(&'b self, signal: Signal, mut context: TransmitContext<'b>) {
-        for &direction in self.0.into_directions() {
-            if direction == signal.direction().opposite() {
-                continue;
-            }
+    fn update<'b>(&'b mut self, mut context: UpdateContext<'b>) {
+        if let Some(signal) = context.take_signal() {
+            for &direction in self.0.into_directions() {
+                if direction == signal.direction().opposite() {
+                    continue;
+                }
 
-            if let Some(pos) = context.offset(direction.into_offset()) {
-                if context.accepts_signal(pos, direction) {
-                    context.send(pos, signal.clone_move(direction).unwrap_or_else(|| unreachable!()));
+                if let Some(pos) = context.offset(direction.into_offset()) {
+                    if context.accepts_signal(pos, direction) {
+                        context.send(pos, signal.clone_move(direction).unwrap_or_else(|| unreachable!()));
+                    }
                 }
             }
+        }
+
+        if context.state() != State::Idle {
+            context.next_state();
         }
     }
 
@@ -41,16 +47,22 @@ impl Diode {
 }
 
 impl Tile for Diode {
-    fn transmit<'b>(&'b self, signal: Signal, mut context: TransmitContext<'b>) {
-        // Block signals coming from where the diode is looking
-        if signal.direction().opposite() == self.0 {
-            return;
+    fn update<'b>(&'b mut self, mut context: UpdateContext<'b>) {
+        if let Some(signal) = context.take_signal() {
+            // Block signals coming from where the diode is looking
+            if signal.direction().opposite() == self.0 {
+                return;
+            }
+
+            if let Some(pos) = context.offset(self.0.into_offset()) {
+                if context.accepts_signal(pos, self.0) {
+                    context.send(pos, signal.clone_move(self.0).unwrap_or_else(|| unreachable!()));
+                }
+            }
         }
 
-        if let Some(pos) = context.offset(self.0.into_offset()) {
-            if context.accepts_signal(pos, self.0) {
-                context.send(pos, signal.clone_move(self.0).unwrap_or_else(|| unreachable!()));
-            }
+        if context.state() != State::Idle {
+            context.next_state();
         }
     }
 }
@@ -73,6 +85,8 @@ mod test {
 
         pane.step();
 
+        println!("{:#?}", pane);
+
         assert_signal!(pane, (1, 0));
         assert_no_signal!(pane, (0, 0));
         assert_no_signal!(pane, (2, 0));
@@ -87,7 +101,7 @@ mod test {
 
         pane.step();
         for (_, _, tile) in pane.tiles() {
-            assert!(tile.signal().is_none());
+            assert!(tile.borrow().signal().is_none());
         }
 
         // Let the simulation cool down
@@ -137,6 +151,7 @@ mod test {
 
         for &pos in positions.iter().cycle().take(16) {
             pane.step();
+            println!("{:#?}", pane);
             assert_signal!(pane, pos);
             for &pos2 in positions.iter() {
                 if pos == pos2 {

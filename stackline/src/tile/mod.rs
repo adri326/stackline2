@@ -18,19 +18,20 @@ pub struct FullTile {
     cell: Option<AnyTile>,
     signal: Option<Signal>,
     state: State,
+    pub(crate) updated: bool,
 }
 
-// SAFETY: should not implement Tile
+// NOTE: should not implement Tile
 impl FullTile {
     pub fn new(cell: Option<AnyTile>) -> Self {
         Self {
             cell,
             signal: None,
-            state: State::default()
+            state: State::default(),
+            updated: false
         }
     }
 
-    // SAFETY: must not access `self.signal`
     pub fn accepts_signal(&self, direction: Direction) -> bool {
         match self.cell {
             Some(ref tile) => self.state.accepts_signal() && tile.accepts_signal(direction),
@@ -38,10 +39,10 @@ impl FullTile {
         }
     }
 
-    /// Returns Some(signal) iff self.cell.is_some()
-    pub(crate) fn set_signal(&mut self, signal: Signal) -> Option<()> {
+    /// Returns `Some` iff self.cell.is_some()
+    pub(crate) fn set_signal(&mut self, signal: Option<Signal>) -> Option<()> {
         if self.cell.is_some() {
-            self.signal = Some(signal);
+            self.signal = signal;
             Some(())
         } else {
             None
@@ -71,16 +72,16 @@ impl FullTile {
         std::mem::take(&mut self.signal)
     }
 
-    // SAFETY: may only access `self.state`
     #[inline]
     pub fn state(&self) -> State {
         self.state
     }
 
-    // SAFETY: may only access `self.state`
     #[inline]
     pub fn set_state(&mut self, state: State) {
-        self.state = state
+        if self.cell.is_some() {
+            self.state = state
+        }
     }
 
     #[inline]
@@ -88,7 +89,7 @@ impl FullTile {
         self.state = self.state.next();
     }
 
-    pub fn into_raw_mut<'b>(&'b mut self) -> (&'b mut Option<AnyTile>, &'b mut Option<Signal>, &'b mut State) {
+    pub fn get_raw_mut<'b>(&'b mut self) -> (&'b mut Option<AnyTile>, &'b mut Option<Signal>, &'b mut State) {
         (&mut self.cell, &mut self.signal, &mut self.state)
     }
 }
@@ -115,15 +116,11 @@ impl From<()> for FullTile {
 }
 
 pub trait Tile: DynClone + std::fmt::Debug {
-    /// Function to be called when the tile needs to update its internal state.
-    /// During the "update" phase, the tile may access its signal and the other tiles immutably.
+    /// Function to be called when the tile needs to be updated.
     #[inline]
     fn update<'b>(&'b mut self, mut context: UpdateContext<'b>) {
         context.next_state();
     }
-
-    /// Function that will be called if the tile has a signal.
-    fn transmit<'b>(&'b self, signal: Signal, context: TransmitContext<'b>);
 
     /// Should return true iff the tile accepts a signal travelling in `Direction`
     #[inline]
@@ -148,11 +145,6 @@ impl AnyTile {
     }
 
     #[inline]
-    pub fn transmit<'b>(&'b self, signal: Signal, context: TransmitContext<'b>) {
-        self.0.transmit(signal, context)
-    }
-
-    #[inline]
     pub fn accepts_signal(&self, direction: Direction) -> bool {
         self.0.accepts_signal(direction)
     }
@@ -172,7 +164,7 @@ mod crate_macros {
         ( $width:expr, $height:expr, [ $( $x:expr ),* ] ) => {{
             assert!($width > 0);
             assert!($height > 0);
-            let mut pane = Pane::empty($width, $height).unwrap();
+            let pane = Pane::empty($width, $height).unwrap();
             let mut index = 0;
 
             $(
@@ -200,7 +192,8 @@ mod crate_macros {
     #[macro_export]
     macro_rules! assert_signal {
         ( $pane:expr, $pos:expr ) => {{
-            let signal = $pane.get($pos).expect(&format!("Couldn't get tile at {:?}", $pos)).signal();
+            let guard = $pane.get($pos).expect(&format!("Couldn't get tile at {:?}", $pos));
+            let signal = guard.signal();
             assert!(signal.is_some());
             signal
         }};
@@ -214,7 +207,8 @@ mod crate_macros {
     #[macro_export]
     macro_rules! assert_no_signal {
         ( $pane:expr, $pos:expr) => {{
-            let signal = $pane.get($pos).expect(&format!("Couldn't get tile at {:?}", $pos)).signal();
+            let guard = $pane.get($pos).expect(&format!("Couldn't get tile at {:?}", $pos));
+            let signal = guard.signal();
             assert!(signal.is_none());
         }}
     }

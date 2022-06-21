@@ -1,12 +1,13 @@
 use super::*;
+use std::cell::{RefCell, Ref, RefMut};
 
 #[derive(Debug)]
 pub struct Pane {
-    tiles: Vec<FullTile>,
+    tiles: Vec<RefCell<FullTile>>,
     width: NonZeroUsize,
     height: NonZeroUsize,
 
-    signals: Vec<(usize, usize)>,
+    pub(crate) signals: Vec<(usize, usize)>,
 }
 
 impl Pane {
@@ -17,14 +18,13 @@ impl Pane {
         Some(Self {
             width: width.try_into().ok()?,
             height: height.try_into().ok()?,
-            tiles: vec![FullTile::default(); length],
+            tiles: vec![RefCell::new(FullTile::default()); length],
 
-            signals: vec![],
+            signals: Vec::new(),
         })
     }
 
     /// Returns `Some((x + Δx, y + Δy))` iff `(x + Δx, y + Δy)` is inside the world
-    // SAFETY: this function may *not* access `self.signals`, `∀x, self.tiles[x].cell` or `∀x, self.tiles[x].signal`
     #[inline]
     pub fn offset(&self, position: (usize, usize), offset: (i8, i8)) -> Option<(usize, usize)> {
         if offset.0 < 0 && (-offset.0) as usize > position.0
@@ -46,34 +46,38 @@ impl Pane {
         }
     }
 
-    // SAFETY: this function may not access `self.signals`, nor may it read the contents of `self.tiles[position]`
+    // TODO: Have a Result instead of an Option
     #[inline]
-    pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<&'b FullTile> {
+    pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<Ref<'b, FullTile>> {
         if !self.in_bounds(position) {
             return None;
         }
 
-        self.tiles.get(position.1 * self.width.get() + position.0)
+        self.tiles.get(position.1 * self.width.get() + position.0).map(|tile| tile.try_borrow().ok()).flatten()
     }
 
     #[inline]
-    pub fn get_mut<'b>(&'b mut self, position: (usize, usize)) -> Option<&'b mut FullTile> {
+    pub fn get_mut<'b>(&'b self, position: (usize, usize)) -> Option<RefMut<'b, FullTile>> {
         if !self.in_bounds(position) {
             return None;
         }
 
-        self.tiles.get_mut(position.1 * self.width.get() + position.0)
+        self.tiles.get(position.1 * self.width.get() + position.0).map(|tile| tile.try_borrow_mut().ok()).flatten()
+    }
+
+    #[inline]
+    pub fn get_state(&self, position: (usize, usize)) -> Option<State> {
+        self.get(position).map(|x| x.state().clone())
     }
 
     /// Sets the signal for the tile at `position` to `signal`.
     /// Returns `Some` iff:
     /// - the tile exists
     /// - the tile accepts a signal (ie. it isn't empty)
-    // SAFETY: may only access `self[pos].signal` and `self.signals`
     #[inline]
     pub fn set_signal(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
         signal.set_position(position);
-        self.get_mut(position)?.set_signal(signal)?;
+        self.get_mut(position)?.set_signal(Some(signal))?;
         self.signals.push(position);
         Some(())
     }
@@ -84,62 +88,38 @@ impl Pane {
     }
 
     #[inline]
-    pub fn update(&mut self, position: (usize, usize)) -> Option<()> {
-        let (ctx, tile) = UpdateContext::new(self, position)?;
+    fn update(&mut self, position: (usize, usize), commit: &mut UpdateCommit) -> Option<()> {
+        let (ctx, mut tile) = UpdateContext::new(self, position, commit)?;
 
         tile.update(ctx);
 
         Some(())
     }
 
-    /// Calls [`Pane::update`] on all non-empty, non-idle tiles
-    fn update_all(&mut self) {
+    // TODO: document
+    pub fn step(&mut self) {
+        let mut commit = UpdateCommit::new();
+
+        for position in std::mem::replace(&mut self.signals, Vec::new()) {
+            let _ = self.update(position, &mut commit);
+        }
+
         for y in 0..self.height.get() {
             for x in 0..self.width.get() {
-                if let Some((ctx, tile)) = UpdateContext::new(self, (x, y)) {
-                    if ctx.state() != State::Idle {
-                        tile.update(ctx);
-                    }
+                if self.get_state((x, y)).unwrap() != State::Idle {
+                    let _ = self.update((x, y), &mut commit);
                 }
             }
         }
-    }
 
-    #[inline]
-    pub fn transmit(&mut self, position: (usize, usize)) -> Option<()> {
-        let (ctx, tile, signal) = TransmitContext::new(self, position)?;
-
-        tile.transmit(signal, ctx);
-
-        Some(())
-    }
-
-    /// Calls [`Pane::transmit`] on all tiles with a signal
-    fn transmit_all(&mut self) {
-        // TODO: store a second buffer and perform swap reads
-        for position in std::mem::replace(&mut self.signals, vec![]) {
-            let _ = self.transmit(position); // May return None if the signal was aliased
-        }
-    }
-
-    /// Runs a single simulation step, which consists of:
-    /// - an update phase, which mutates the inner state of [active](State::Active)] cells by calling [`Tile::update`]
-    /// - a transmit phase, which mutates and moves signals between cells by calling [`Tile::transmit`]
-    pub fn step(&mut self) {
-        self.update_all();
-        self.transmit_all();
+        commit.apply(self);
     }
 
     /// Returns an iterator over the tiles and their coordinates
     #[inline]
-    pub fn tiles<'b>(&'b self) -> impl Iterator<Item=(usize, usize, &'b FullTile)> + 'b {
-        self.tiles.iter().enumerate().map(move |(i, v)| (i % self.width, i / self.width, v))
-    }
-
-    /// Returns a mutable iterator over the tiles and their coordinates
-    #[inline]
-    pub fn tiles_mut<'b>(&'b mut self) -> impl Iterator<Item=(usize, usize, &'b mut FullTile)> + 'b {
-        let width = self.width;
-        self.tiles.iter_mut().enumerate().map(move |(i, v)| (i % width, i / width, v))
+    pub fn tiles<'b>(&'b self) -> impl Iterator<Item=(usize, usize, &RefCell<FullTile>)> + 'b {
+        self.tiles.iter().enumerate().filter_map(move |(i, v)| {
+            Some((i % self.width, i / self.width, v))
+        })
     }
 }
