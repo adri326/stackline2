@@ -1,8 +1,12 @@
 use super::*;
-use std::cell::{Ref, RefMut};
 
 /** Provides an interface between a [`Tile`] and its parent [`Pane`] during [`Tile::update`].
     All actions performed through `UpdateContext` will be executed *after* all the tiles have updated.
+
+    ## Safety
+
+    Because [`Tile::update`] requires a `&mut self` reference, the current [`Tile`] cannot be accessed through [`UpdateContext::get`]
+    This structure stores the state and signal of the [`FullTile`] containing the current tile, and it is still possible and safe to call [`UpdateContext::send`] on the current position.
 **/
 pub struct UpdateContext<'a> {
     position: (usize, usize),
@@ -12,31 +16,32 @@ pub struct UpdateContext<'a> {
     commit: &'a mut UpdateCommit
 }
 
+// SAFETY: self.pane.tiles[self.position] may not be accessed from any method
 impl<'a> UpdateContext<'a> {
     /// Returns `None` if the tile was already updated or is empty
-    pub(crate) fn new(pane: &'a Pane, position: (usize, usize), commit: &'a mut UpdateCommit) -> Option<(Self, RefMut<'a, AnyTile>)> {
-        let mut guard = pane.get_mut(position)?;
-        if guard.updated {
+    pub(crate) fn new(pane: &'a mut Pane, position: (usize, usize), commit: &'a mut UpdateCommit) -> Option<(UpdateContext<'a>, &'a mut AnyTile)> {
+        let mut tile = pane.get_mut(position)?;
+        if tile.updated {
             return None
         }
-        guard.updated = true; // prevent duplicate updates
+        tile.updated = true; // prevent duplicate updates
         commit.updates.push(position);
 
-        let (tile, signal, state) = guard.get_raw_mut();
-
-        if tile.is_none() {
-            return None
-        }
+        let ptr: *mut AnyTile = &mut **(tile.get_mut().as_mut()?);
 
         let res = Self {
             position,
+            state: tile.state(),
+            signal: tile.take_signal(),
             pane,
-            state: *state,
-            signal: std::mem::take(signal),
             commit
         };
 
-        Some((res, RefMut::map(guard, |tile| tile.get_mut().unwrap_or_else(|| unreachable!()))))
+        // SAFETY: ptr is a valid pointer
+        // SAFETY: aliasing is prevented by the invariants of UpdateContext
+        Some((res, unsafe {
+            &mut *ptr
+        }))
     }
 
     /// Returns the position of the currently updated tile.
@@ -81,10 +86,14 @@ impl<'a> UpdateContext<'a> {
     }
 
     /// Returns an immutable reference to the [FullTile] at `pos` in the current [Pane].
-    /// Returns `None` if the tile is borrowed mutably or if it does not exist.
+    /// Returns `None` if the tile is borrowed mutably, if it is the current tile or if it does not exist.
     #[inline]
-    pub fn get<'b>(&'b self, pos: (usize, usize)) -> Option<Ref<'b, FullTile>> where 'a: 'b {
-        self.pane.get(pos)
+    pub fn get<'b>(&'b self, pos: (usize, usize)) -> Option<&'b FullTile> where 'a: 'b {
+        if self.position == pos {
+            None
+        } else {
+            self.pane.get(pos)
+        }
     }
 
     /// Returns `Some((position.x + Δx, position.y + Δy))` iff `(x + Δx, y + Δy)` is inside the pane
@@ -95,7 +104,7 @@ impl<'a> UpdateContext<'a> {
 
     /// Shortcut for calling both `ctx.offset(offset)` and `ctx.get(pos)`
     #[inline]
-    pub fn get_offset<'b>(&'b self, offset: (i8, i8)) -> Option<((usize, usize), Ref<'b, FullTile>)> where 'a: 'b {
+    pub fn get_offset<'b>(&'b self, offset: (i8, i8)) -> Option<((usize, usize), &'b FullTile)> where 'a: 'b {
         self.offset(offset).and_then(|pos| self.get(pos).map(|tile| (pos, tile)))
     }
 
@@ -103,7 +112,7 @@ impl<'a> UpdateContext<'a> {
     /// If the tile does not exist, then this function will return `false`.
     #[inline]
     pub fn accepts_signal(&self, pos: (usize, usize), direction: Direction) -> bool {
-        match self.pane.get(pos) {
+        match self.get(pos) {
             Some(tile) => tile.accepts_signal(direction),
             None => false
         }
@@ -151,19 +160,19 @@ impl UpdateCommit {
 
     pub(crate) fn apply(self, pane: &mut Pane) {
         for (x, y) in self.updates {
-            if let Some(mut tile) = pane.get_mut((x, y)) {
+            if let Some(tile) = pane.get_mut((x, y)) {
                 tile.updated = false;
             }
         }
 
         for (x, y, state) in self.states {
-            if let Some(mut tile) = pane.get_mut((x, y)) {
+            if let Some(tile) = pane.get_mut((x, y)) {
                 tile.set_state(state);
             }
         }
 
         for (x, y, signal) in self.signals {
-            let push_signal = if let Some(mut tile) = pane.get_mut((x, y)) {
+            let push_signal = if let Some(tile) = pane.get_mut((x, y)) {
                 tile.set_signal(signal);
                 tile.set_state(State::Active);
                 // For some reason std::mem::drop(tile) isn't enough here

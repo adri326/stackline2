@@ -164,7 +164,7 @@ mod crate_macros {
         ( $width:expr, $height:expr, [ $( $x:expr ),* ] ) => {{
             assert!($width > 0);
             assert!($height > 0);
-            let pane = Pane::empty($width, $height).unwrap();
+            let mut pane = Pane::empty($width, $height).unwrap();
             let mut index = 0;
 
             $(

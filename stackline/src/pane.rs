@@ -1,9 +1,8 @@
 use super::*;
-use std::cell::{RefCell, Ref, RefMut};
 
 #[derive(Debug)]
 pub struct Pane {
-    tiles: Vec<RefCell<FullTile>>,
+    tiles: Vec<FullTile>,
     width: NonZeroUsize,
     height: NonZeroUsize,
 
@@ -18,7 +17,7 @@ impl Pane {
         Some(Self {
             width: width.try_into().ok()?,
             height: height.try_into().ok()?,
-            tiles: vec![RefCell::new(FullTile::default()); length],
+            tiles: vec![FullTile::default(); length],
 
             signals: Vec::new(),
         })
@@ -48,21 +47,21 @@ impl Pane {
 
     // TODO: Have a Result instead of an Option
     #[inline]
-    pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<Ref<'b, FullTile>> {
+    pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<&'b FullTile> {
         if !self.in_bounds(position) {
             return None;
         }
 
-        self.tiles.get(position.1 * self.width.get() + position.0).map(|tile| tile.try_borrow().ok()).flatten()
+        self.tiles.get(position.1 * self.width.get() + position.0)
     }
 
     #[inline]
-    pub fn get_mut<'b>(&'b self, position: (usize, usize)) -> Option<RefMut<'b, FullTile>> {
+    pub fn get_mut<'b>(&'b mut self, position: (usize, usize)) -> Option<&'b mut FullTile> {
         if !self.in_bounds(position) {
             return None;
         }
 
-        self.tiles.get(position.1 * self.width.get() + position.0).map(|tile| tile.try_borrow_mut().ok()).flatten()
+        self.tiles.get_mut(position.1 * self.width.get() + position.0)
     }
 
     #[inline]
@@ -89,7 +88,7 @@ impl Pane {
 
     #[inline]
     fn update(&mut self, position: (usize, usize), commit: &mut UpdateCommit) -> Option<()> {
-        let (ctx, mut tile) = UpdateContext::new(self, position, commit)?;
+        let (ctx, tile) = UpdateContext::new(self, position, commit)?;
 
         tile.update(ctx);
 
@@ -117,7 +116,7 @@ impl Pane {
 
     /// Returns an iterator over the tiles and their coordinates
     #[inline]
-    pub fn tiles<'b>(&'b self) -> impl Iterator<Item=(usize, usize, &RefCell<FullTile>)> + 'b {
+    pub fn tiles<'b>(&'b self) -> impl Iterator<Item=(usize, usize, &FullTile)> + 'b {
         self.tiles.iter().enumerate().filter_map(move |(i, v)| {
             Some((i % self.width, i / self.width, v))
         })

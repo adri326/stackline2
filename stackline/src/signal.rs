@@ -14,16 +14,17 @@ impl Signal {
         }
     }
 
-    pub fn clone_move(&self, direction: Direction) -> Option<Self> {
+    pub fn clone_move(&self, direction: Direction) -> Self {
         let mut res = self.clone();
         res.direction = direction;
 
-        let (dx, dy) = direction.into_offset();
+        res
+    }
 
-        res.position.0 = (res.position.0 as isize + dx as isize).try_into().ok()?;
-        res.position.1 = (res.position.1 as isize + dy as isize).try_into().ok()?;
+    pub fn moved(mut self, direction: Direction) -> Self {
+        self.direction = direction;
 
-        Some(res)
+        self
     }
 
     pub fn direction(&self) -> Direction {
