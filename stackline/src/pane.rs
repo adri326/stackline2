@@ -57,7 +57,7 @@ impl Pane {
 
     /// Returns a mutable reference to the [`Tile`] at `position`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use stackline::prelude::*;
@@ -123,6 +123,7 @@ impl Pane {
 
     #[inline]
     fn update(&mut self, position: (usize, usize), commit: &mut UpdateCommit) -> Option<()> {
+        // NOTE: Tiles will only be updated once as per UpdateContext::new
         let (ctx, tile) = UpdateContext::new(self, position, commit)?;
 
         tile.update(ctx);
@@ -130,7 +131,55 @@ impl Pane {
         Some(())
     }
 
-    // TODO: document
+    /// Performs an update cycle.
+    /// Such an update cycle roughly consists of the following:
+    ///
+    /// - Calls [`Tile::update`] on every tile with a signal
+    /// - Calls [`Tile::update`] on every active tile (tiles will only be updated once)
+    /// - Applies all signal [`send`s](UpdateContext::send)
+    /// - Applies all [state changes](UpdateContext::set_state)
+    ///
+    /// # Guarantees
+    ///
+    /// To prevent unwanted behavior, the following properties are upheld by this method and the methods of [`UpdateContext`]:
+    ///
+    /// - Order-agnostism: [updating](Tile::update) a tile `A` before a tile `B` will result in the same state as if `B` was updated before `A`.
+    /// - As a consequence, when a tile `A` is updated, it cannot modify the state of any other tile.
+    /// - Any [`Signal`] or [`State`] update will only be carried out after every tile was updated.
+    ///   The only exception to this rule is [`UpdateContext::keep`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use stackline::prelude::*;
+    /// use stackline::tile::Diode;
+    ///
+    /// let mut pane = Pane::empty(2, 2).unwrap();
+    ///
+    /// pane.set_tile((0, 0), Diode::new(Direction::Right));
+    /// pane.set_tile((1, 0), Diode::new(Direction::Down));
+    /// pane.set_tile((1, 1), Diode::new(Direction::Left));
+    /// pane.set_tile((0, 1), Diode::new(Direction::Up));
+    ///
+    /// println!("{:?}", pane);
+    /// // >v
+    /// // ^<
+    ///
+    /// // Initialize the circuit with a signal at (0, 0)
+    /// pane.set_signal((0, 0), stackline::signal!((0, 0), Direction::Right));
+    ///
+    /// // Do an update step
+    /// pane.step();
+    ///
+    /// // The signal has now been moved to (1, 0) by the Diode
+    /// assert!(pane.get((1, 0)).unwrap().signal().is_some());
+    ///
+    /// // Do another update step
+    /// pane.step();
+    ///
+    /// // The signal is now at (1, 1)
+    /// assert!(pane.get((1, 1)).unwrap().signal().is_some());
+    /// ```
     pub fn step(&mut self) {
         let mut commit = UpdateCommit::new();
 
