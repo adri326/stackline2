@@ -35,6 +35,16 @@ impl Tile for Wire {
     fn accepts_signal(&self, direction: Direction) -> bool {
         self.0.contains(direction)
     }
+
+    fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
+        let ch = match self.0 {
+            Orientation::Horizontal => '-',
+            Orientation::Vertical => '|',
+            Orientation::Any => '+'
+        };
+
+        surface.set(x, y, TextChar::from_state(ch, state));
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -64,6 +74,17 @@ impl Tile for Diode {
         if context.state() != State::Idle {
             context.next_state();
         }
+    }
+
+    fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
+        let ch = match self.0 {
+            Direction::Up => '^',
+            Direction::Down => 'v',
+            Direction::Left => '<',
+            Direction::Right => '>',
+        };
+
+        surface.set(x, y, TextChar::from_state(ch, state));
     }
 }
 
@@ -100,6 +121,17 @@ impl Tile for Resistor {
                 context.next_state();
             }
         }
+    }
+
+    fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
+        let ch = match self.direction {
+            Direction::Up => '\u{219f}', // Upwards Two Headed Arrow
+            Direction::Down => '\u{21a1}', // Downwards Two Headed Arrow
+            Direction::Left => '\u{219e}', // Leftwards Two Headed Arrow
+            Direction::Right => '\u{21a0}', // Rightwards Two Headed Arrow
+        };
+
+        surface.set(x, y, TextChar::from_state(ch, state));
     }
 }
 

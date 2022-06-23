@@ -24,6 +24,9 @@ use tile::*;
 pub mod context;
 use context::*;
 
+pub mod text;
+use text::*;
+
 pub struct World {
     panes: Vec<Pane>,
 }
@@ -31,6 +34,8 @@ pub struct World {
 pub mod prelude {
     pub use crate::pane::Pane;
     pub use crate::World;
+
+    pub use crate::text::{TextSurface, TextChar};
 
     pub use crate::context::UpdateContext;
     pub use crate::signal::Signal;

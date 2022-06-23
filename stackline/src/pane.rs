@@ -157,4 +157,80 @@ impl Pane {
             .enumerate()
             .filter_map(move |(i, v)| Some((i % self.width, i / self.width, v)))
     }
+
+    pub fn draw(&self, dx: isize, dy: isize, surface: &mut TextSurface) {
+        for (x, y, tile) in self.tiles() {
+            let x = x as isize + dx;
+            let y = y as isize + dy;
+
+            if x >= 0 && y >= 0 {
+                tile.draw(x as usize, y as usize, surface);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_pane_draw() {
+        use crate::tile::Wire;
+        use Orientation::*;
+
+        let mut surface = TextSurface::new(3, 3);
+        let mut pane = test_tile_setup!(2, 2, [Wire::new(Horizontal), Wire::new(Vertical), Wire::new(Any), ()]);
+        test_set_signal!(pane, (0, 0), Direction::Right);
+
+        pane.draw(0, 0, &mut surface);
+
+        assert_eq!(surface.get(0, 0).unwrap().ch, '-');
+        assert_eq!(surface.get(1, 0).unwrap().ch, '|');
+        assert_eq!(surface.get(0, 1).unwrap().ch, '+');
+        assert_eq!(surface.get(1, 1), Some(TextChar::default()));
+        for n in 0..3 {
+            assert_eq!(surface.get(2, n), Some(TextChar::default()));
+            assert_eq!(surface.get(n, 2), Some(TextChar::default()));
+        }
+
+        // With offset (1, 0)
+        let mut surface = TextSurface::new(3, 3);
+        pane.draw(1, 0, &mut surface);
+
+        assert_eq!(surface.get(1, 0).unwrap().ch, '-');
+        assert_eq!(surface.get(2, 0).unwrap().ch, '|');
+        assert_eq!(surface.get(1, 1).unwrap().ch, '+');
+        assert_eq!(surface.get(2, 1), Some(TextChar::default()));
+        for n in 0..3 {
+            assert_eq!(surface.get(0, n), Some(TextChar::default()));
+            assert_eq!(surface.get(n, 2), Some(TextChar::default()));
+        }
+
+        // With offset (0, 1)
+        let mut surface = TextSurface::new(3, 3);
+        pane.draw(0, 1, &mut surface);
+
+        assert_eq!(surface.get(0, 1).unwrap().ch, '-');
+        assert_eq!(surface.get(1, 1).unwrap().ch, '|');
+        assert_eq!(surface.get(0, 2).unwrap().ch, '+');
+        assert_eq!(surface.get(1, 2), Some(TextChar::default()));
+        for n in 0..3 {
+            assert_eq!(surface.get(2, n), Some(TextChar::default()));
+            assert_eq!(surface.get(n, 0), Some(TextChar::default()));
+        }
+
+        // Draw outside of bounds with offset (2, 2)
+        let mut surface = TextSurface::new(3, 3);
+        pane.draw(2, 2, &mut surface);
+
+        assert_eq!(surface.get(2, 2).unwrap().ch, '-');
+        for y in 0..3 {
+            for x in 0..3 {
+                if (x, y) != (2, 2) {
+                    assert_eq!(surface.get(x, y), Some(TextChar::default()));
+                }
+            }
+        }
+    }
 }
