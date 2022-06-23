@@ -38,7 +38,7 @@ pub mod prelude {
     pub use crate::text::{TextSurface, TextChar};
 
     pub use crate::context::UpdateContext;
-    pub use crate::signal::Signal;
+    pub use crate::signal::{Signal, Value};
     pub use crate::tile::Tile;
     pub use crate::utils::*;
 }

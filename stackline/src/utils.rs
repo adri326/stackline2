@@ -62,6 +62,12 @@ impl Orientation {
     }
 }
 
+impl Default for Orientation {
+    fn default() -> Self {
+        Orientation::Any
+    }
+}
+
 impl Direction {
     /// Converts a [Direction] in a pair `(Δx, Δy)`, with [Up](Direction::Up) being equal to `(0, -1)`
     #[inline]
@@ -83,6 +89,12 @@ impl Direction {
             Direction::Left => Direction::Right,
             Direction::Right => Direction::Left,
         }
+    }
+}
+
+impl Default for Direction {
+    fn default() -> Self {
+        Direction::Up
     }
 }
 

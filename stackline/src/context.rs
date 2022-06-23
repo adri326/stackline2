@@ -5,13 +5,15 @@ use super::*;
 
     ## Design
 
-    There are several factors that come into the design of [`UpdateContext`]:
+    There are several factors that came into the design of [`UpdateContext`]:
 
     - all of its methods are considered hot-path code, which means that allocations must be kept at a minimum
     - all of the actions must be performed after all the tiles were updated
     - we need mutable access to the current tile, so that it can update its internal state
 
     ## Example
+
+    Here is how you would implement a simple "counter" tile:
 
     ```
     # use stackline::{*, tile::*, context::*};
@@ -58,8 +60,9 @@ pub struct UpdateContext<'a> {
     commit: &'a mut UpdateCommit,
 }
 
-// SAFETY: self.pane.tiles[self.position] may not be accessed from any method
+// SAFETY: self.pane.tiles[self.position] may not be accessed by any method of UpdateContext
 impl<'a> UpdateContext<'a> {
+    /// Creates a new UpdateContext
     /// Returns `None` if the tile was already updated or is empty
     pub(crate) fn new(
         pane: &'a mut Pane,
@@ -89,6 +92,23 @@ impl<'a> UpdateContext<'a> {
     }
 
     /// Returns the position of the currently updated tile.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use stackline::prelude::*;
+    /// # #[derive(Clone, Debug)]
+    /// # pub struct MyTile;
+    /// # impl Tile for MyTile {
+    /// fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
+    ///     if let Some(mut signal) = ctx.take_signal() {
+    ///         let (x, y) = ctx.position();
+    ///         signal.push(Value::Number(y as f64));
+    ///         signal.push(Value::Number(x as f64));
+    ///     }
+    /// }
+    /// # }
+    /// ```
     #[inline]
     pub fn position(&self) -> (usize, usize) {
         self.position
@@ -167,6 +187,17 @@ impl<'a> UpdateContext<'a> {
         }
     }
 
+    /// Returns `Some(pos)` iff `pos = (x + Δx, y + Δy)` is a valid position and `self.get(pos).accepts_signal(direction)`
+    #[inline]
+    pub fn accepts_direction(&self, direction: Direction) -> Option<(usize, usize)> {
+        let (pos, tile) = self.get_offset(direction.into_offset())?;
+        if tile.accepts_signal(direction) {
+            Some(pos)
+        } else {
+            None
+        }
+    }
+
     /// Sends a signal to be stored in a cell (may be the current one), the signal overrides that of the other cell
     /// Returns true if the signal was stored in a cell, false otherwise.
     /// The target cell's state will be set to `Active` if it received the signal.
@@ -184,6 +215,8 @@ impl<'a> UpdateContext<'a> {
     }
 }
 
+/// Temporarily holds a list of actions to be made on a given Pane, which should be [applied](UpdateCommit::apply)
+/// after every tile was updated.
 pub(crate) struct UpdateCommit {
     states: Vec<(usize, usize, State)>,
     signals: Vec<(usize, usize, Option<Signal>)>,

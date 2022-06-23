@@ -19,10 +19,8 @@ impl Tile for Wire {
                     continue;
                 }
 
-                if let Some(pos) = context.offset(direction.into_offset()) {
-                    if context.accepts_signal(pos, direction) {
-                        context.send(pos, signal.clone_move(direction));
-                    }
+                if let Some(pos) = context.accepts_direction(direction) {
+                    context.send(pos, signal.clone_move(direction));
                 }
             }
         }
@@ -64,10 +62,8 @@ impl Tile for Diode {
                 return;
             }
 
-            if let Some(pos) = context.offset(self.0.into_offset()) {
-                if context.accepts_signal(pos, self.0) {
-                    context.send(pos, signal.moved(self.0));
-                }
+            if let Some(pos) = context.accepts_direction(self.0) {
+                context.send(pos, signal.moved(self.0));
             }
         }
 
@@ -106,10 +102,8 @@ impl Resistor {
 impl Tile for Resistor {
     fn update<'b>(&'b mut self, mut context: UpdateContext<'b>) {
         if let Some(signal) = std::mem::take(&mut self.signal) {
-            if let Some(pos) = context.offset(self.direction.into_offset()) {
-                if context.accepts_signal(pos, self.direction) {
-                    context.send(pos, signal.moved(self.direction));
-                }
+            if let Some(pos) = context.accepts_direction(self.direction) {
+                context.send(pos, signal.moved(self.direction));
             }
         }
 
