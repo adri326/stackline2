@@ -29,11 +29,11 @@ pub struct World {
 }
 
 pub mod prelude {
-    pub use crate::World;
     pub use crate::pane::Pane;
+    pub use crate::World;
 
-    pub use crate::utils::*;
-    pub use crate::signal::Signal;
     pub use crate::context::UpdateContext;
+    pub use crate::signal::Signal;
     pub use crate::tile::Tile;
+    pub use crate::utils::*;
 }

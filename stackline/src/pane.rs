@@ -76,12 +76,16 @@ impl Pane {
             return None;
         }
 
-        self.tiles.get_mut(position.1 * self.width.get() + position.0)
+        self.tiles
+            .get_mut(position.1 * self.width.get() + position.0)
     }
 
     /// Sets the tile at `position` to `tile`. `T` must either implement [`Tile`] or be `()`.
     #[inline]
-    pub fn set_tile<T>(&mut self, position: (usize, usize), tile: T) -> Option<()> where FullTile: From<T> {
+    pub fn set_tile<T>(&mut self, position: (usize, usize), tile: T) -> Option<()>
+    where
+        FullTile: From<T>,
+    {
         let full_tile = self.get_mut(position)?;
 
         *full_tile = FullTile::from(tile);
@@ -147,9 +151,10 @@ impl Pane {
 
     /// Returns an iterator over the tiles and their coordinates
     #[inline]
-    pub fn tiles<'b>(&'b self) -> impl Iterator<Item=(usize, usize, &FullTile)> + 'b {
-        self.tiles.iter().enumerate().filter_map(move |(i, v)| {
-            Some((i % self.width, i / self.width, v))
-        })
+    pub fn tiles<'b>(&'b self) -> impl Iterator<Item = (usize, usize, &FullTile)> + 'b {
+        self.tiles
+            .iter()
+            .enumerate()
+            .filter_map(move |(i, v)| Some((i % self.width, i / self.width, v)))
     }
 }

@@ -10,7 +10,7 @@ impl Signal {
     pub fn empty(position: (usize, usize), direction: Direction) -> Self {
         Self {
             direction,
-            position
+            position,
         }
     }
 

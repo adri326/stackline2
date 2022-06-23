@@ -28,7 +28,7 @@ impl FullTile {
             cell,
             signal: None,
             state: State::default(),
-            updated: false
+            updated: false,
         }
     }
 
@@ -87,10 +87,6 @@ impl FullTile {
     #[inline]
     pub fn next_state(&mut self) {
         self.state = self.state.next();
-    }
-
-    pub fn get_raw_mut<'b>(&'b mut self) -> (&'b mut Option<AnyTile>, &'b mut Option<Signal>, &'b mut State) {
-        (&mut self.cell, &mut self.signal, &mut self.state)
     }
 }
 
@@ -186,13 +182,15 @@ mod crate_macros {
     macro_rules! test_set_signal {
         ( $pane:expr, $pos:expr, $dir:expr ) => {
             $pane.set_signal($pos, Signal::empty($pos, $dir)).unwrap();
-        }
+        };
     }
 
     #[macro_export]
     macro_rules! assert_signal {
         ( $pane:expr, $pos:expr ) => {{
-            let guard = $pane.get($pos).expect(&format!("Couldn't get tile at {:?}", $pos));
+            let guard = $pane
+                .get($pos)
+                .expect(&format!("Couldn't get tile at {:?}", $pos));
             let signal = guard.signal();
             assert!(signal.is_some());
             signal
@@ -201,15 +199,17 @@ mod crate_macros {
         ( $pane:expr, $pos:expr, [ $( $data:expr ),* ] ) => {{
             let signal = assert_signal!($pane, $pos);
             // TODO: check that signal.data == data
-        }}
+        }};
     }
 
     #[macro_export]
     macro_rules! assert_no_signal {
         ( $pane:expr, $pos:expr) => {{
-            let guard = $pane.get($pos).expect(&format!("Couldn't get tile at {:?}", $pos));
+            let guard = $pane
+                .get($pos)
+                .expect(&format!("Couldn't get tile at {:?}", $pos));
             let signal = guard.signal();
             assert!(signal.is_none());
-        }}
+        }};
     }
 }

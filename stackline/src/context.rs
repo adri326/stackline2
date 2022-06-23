@@ -55,16 +55,20 @@ pub struct UpdateContext<'a> {
     pane: &'a Pane,
     state: State,
     signal: Option<Signal>,
-    commit: &'a mut UpdateCommit
+    commit: &'a mut UpdateCommit,
 }
 
 // SAFETY: self.pane.tiles[self.position] may not be accessed from any method
 impl<'a> UpdateContext<'a> {
     /// Returns `None` if the tile was already updated or is empty
-    pub(crate) fn new(pane: &'a mut Pane, position: (usize, usize), commit: &'a mut UpdateCommit) -> Option<(UpdateContext<'a>, &'a mut AnyTile)> {
+    pub(crate) fn new(
+        pane: &'a mut Pane,
+        position: (usize, usize),
+        commit: &'a mut UpdateCommit,
+    ) -> Option<(UpdateContext<'a>, &'a mut AnyTile)> {
         let mut tile = pane.get_mut(position)?;
         if tile.updated {
-            return None
+            return None;
         }
         tile.updated = true; // prevent duplicate updates
         commit.updates.push(position);
@@ -76,14 +80,12 @@ impl<'a> UpdateContext<'a> {
             state: tile.state(),
             signal: tile.take_signal(),
             pane,
-            commit
+            commit,
         };
 
         // SAFETY: ptr is a valid pointer
         // SAFETY: aliasing is prevented by the invariants of UpdateContext
-        Some((res, unsafe {
-            &mut *ptr
-        }))
+        Some((res, unsafe { &mut *ptr }))
     }
 
     /// Returns the position of the currently updated tile.
@@ -94,7 +96,10 @@ impl<'a> UpdateContext<'a> {
 
     /// Returns the [signal](crate::FullTile::signal) of the currently updated tile.
     #[inline]
-    pub fn signal<'b>(&'b self) -> Option<&'b Signal> where 'a: 'b {
+    pub fn signal<'b>(&'b self) -> Option<&'b Signal>
+    where
+        'a: 'b,
+    {
         self.signal.as_ref()
     }
 
@@ -125,7 +130,10 @@ impl<'a> UpdateContext<'a> {
     /// Returns an immutable reference to the [FullTile] at `pos` in the current [Pane].
     /// Returns `None` if the tile is borrowed mutably, if it is the current tile or if it does not exist.
     #[inline]
-    pub fn get<'b>(&'b self, pos: (usize, usize)) -> Option<&'b FullTile> where 'a: 'b {
+    pub fn get<'b>(&'b self, pos: (usize, usize)) -> Option<&'b FullTile>
+    where
+        'a: 'b,
+    {
         if self.position == pos {
             None
         } else {
@@ -141,8 +149,12 @@ impl<'a> UpdateContext<'a> {
 
     /// Shortcut for calling both `ctx.offset(offset)` and `ctx.get(pos)`
     #[inline]
-    pub fn get_offset<'b>(&'b self, offset: (i8, i8)) -> Option<((usize, usize), &'b FullTile)> where 'a: 'b {
-        self.offset(offset).and_then(|pos| self.get(pos).map(|tile| (pos, tile)))
+    pub fn get_offset<'b>(&'b self, offset: (i8, i8)) -> Option<((usize, usize), &'b FullTile)>
+    where
+        'a: 'b,
+    {
+        self.offset(offset)
+            .and_then(|pos| self.get(pos).map(|tile| (pos, tile)))
     }
 
     /// Returns whether or not the tile at `pos` accepts a signal coming from `direction`.
@@ -151,7 +163,7 @@ impl<'a> UpdateContext<'a> {
     pub fn accepts_signal(&self, pos: (usize, usize), direction: Direction) -> bool {
         match self.get(pos) {
             Some(tile) => tile.accepts_signal(direction),
-            None => false
+            None => false,
         }
     }
 
@@ -163,7 +175,7 @@ impl<'a> UpdateContext<'a> {
         signal.set_position(pos);
 
         if !self.pane.in_bounds(pos) {
-            return None
+            return None;
         }
 
         self.commit.send(pos, signal);

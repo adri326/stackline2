@@ -77,7 +77,7 @@ impl Resistor {
     pub fn new(direction: Direction) -> Self {
         Self {
             direction,
-            signal: None
+            signal: None,
         }
     }
 }
@@ -111,10 +111,18 @@ mod test {
     fn test_wire_transmit() {
         use crate::Orientation::*;
 
-        let mut pane = test_tile_setup!(3, 2, [
-            Wire::new(Horizontal), Wire::new(Any), Wire::new(Horizontal),
-            (), Wire::new(Vertical), ()
-        ]);
+        let mut pane = test_tile_setup!(
+            3,
+            2,
+            [
+                Wire::new(Horizontal),
+                Wire::new(Any),
+                Wire::new(Horizontal),
+                (),
+                Wire::new(Vertical),
+                ()
+            ]
+        );
 
         // Test the signal going from left to right
         test_set_signal!(pane, (0, 0), Direction::Right);
@@ -166,10 +174,18 @@ mod test {
     fn test_diode_transmit() {
         use crate::Direction::*;
 
-        let mut pane = test_tile_setup!(3, 2, [
-            Diode::new(Right), Diode::new(Right), Diode::new(Down),
-            (), Diode::new(Up), Diode::new(Left)
-        ]);
+        let mut pane = test_tile_setup!(
+            3,
+            2,
+            [
+                Diode::new(Right),
+                Diode::new(Right),
+                Diode::new(Down),
+                (),
+                Diode::new(Up),
+                Diode::new(Left)
+            ]
+        );
 
         // Test the signal going from left to right
         test_set_signal!(pane, (0, 0), Direction::Right);
@@ -178,12 +194,7 @@ mod test {
         assert_signal!(pane, (1, 0));
         assert_no_signal!(pane, (0, 0));
 
-        let positions = [
-            (2, 0),
-            (2, 1),
-            (1, 1),
-            (1, 0)
-        ];
+        let positions = [(2, 0), (2, 1), (1, 1), (1, 0)];
 
         for &pos in positions.iter().cycle().take(16) {
             pane.step();
@@ -191,7 +202,7 @@ mod test {
             assert_signal!(pane, pos);
             for &pos2 in positions.iter() {
                 if pos == pos2 {
-                    continue
+                    continue;
                 }
                 assert_no_signal!(pane, pos2);
             }
@@ -202,9 +213,16 @@ mod test {
     fn test_resistor_transmit() {
         use crate::Direction::*;
 
-        let mut pane = test_tile_setup!(4, 1, [
-            Diode::new(Right), Resistor::new(Right), Resistor::new(Right), Diode::new(Right)
-        ]);
+        let mut pane = test_tile_setup!(
+            4,
+            1,
+            [
+                Diode::new(Right),
+                Resistor::new(Right),
+                Resistor::new(Right),
+                Diode::new(Right)
+            ]
+        );
 
         test_set_signal!(pane, (0, 0), Direction::Right);
 
