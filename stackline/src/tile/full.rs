@@ -102,10 +102,12 @@ impl Default for FullTile {
     }
 }
 
-impl<T: Tile + 'static> From<T> for FullTile {
+impl<T: Tile + 'static> From<T> for FullTile
+where AnyTile: From<T>
+{
     #[inline]
     fn from(tile: T) -> Self {
-        Self::new(Some(AnyTile::new(tile)))
+        Self::new(Some(AnyTile::from(tile)))
     }
 }
 

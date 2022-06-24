@@ -1,5 +1,6 @@
 use super::*;
 use dyn_clone::{clone_box, DynClone};
+use enum_dispatch::enum_dispatch;
 
 mod wire;
 pub use wire::*;
@@ -7,6 +8,17 @@ pub use wire::*;
 mod full;
 pub use full::*;
 
+// TODO: implement a build.rs to auto-generate AnyTile
+
+#[derive(Clone, Debug)]
+#[enum_dispatch]
+pub enum AnyTile {
+    Wire(Wire),
+    Diode(Diode),
+    Resistor(Resistor),
+}
+
+#[enum_dispatch(AnyTile)]
 pub trait Tile: DynClone + std::fmt::Debug {
     /// Function to be called when the tile needs to be updated.
     #[inline]
@@ -31,37 +43,43 @@ pub trait Tile: DynClone + std::fmt::Debug {
     }
 }
 
-#[derive(Debug)]
-pub struct AnyTile(Box<dyn Tile>);
+// #[derive(Debug)]
+// pub struct AnyTile(Box<dyn Tile>);
 
-impl AnyTile {
-    #[inline]
-    pub fn new<T: Tile + 'static>(tile: T) -> Self {
-        Self(Box::new(tile))
-    }
+// impl AnyTile {
+//     #[inline]
+//     pub fn new<T: Tile + 'static>(tile: T) -> Self {
+//         Self(Box::new(tile))
+//     }
 
-    #[inline]
-    pub fn update<'b>(&'b mut self, ctx: UpdateContext<'b>) {
-        self.0.update(ctx)
-    }
+//     #[inline]
+//     pub fn update<'b>(&'b mut self, ctx: UpdateContext<'b>) {
+//         self.0.update(ctx)
+//     }
 
-    #[inline]
-    pub fn accepts_signal(&self, direction: Direction) -> bool {
-        self.0.accepts_signal(direction)
-    }
+//     #[inline]
+//     pub fn accepts_signal(&self, direction: Direction) -> bool {
+//         self.0.accepts_signal(direction)
+//     }
 
-    #[inline]
-    pub fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
-        self.0.draw(x, y, state, surface);
-    }
-}
+//     #[inline]
+//     pub fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
+//         self.0.draw(x, y, state, surface);
+//     }
+// }
 
-impl Clone for AnyTile {
-    #[inline]
-    fn clone(&self) -> Self {
-        Self(clone_box(self.0.as_ref()))
-    }
-}
+// impl Clone for AnyTile {
+//     #[inline]
+//     fn clone(&self) -> Self {
+//         Self(clone_box(self.0.as_ref()))
+//     }
+// }
+
+// impl<T: Tile + 'static> From<T> for AnyTile {
+//     fn from(tile: T) -> AnyTile {
+//         AnyTile(Box::new(tile))
+//     }
+// }
 
 #[cfg(test)]
 mod crate_macros {
