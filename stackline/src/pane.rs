@@ -10,6 +10,28 @@ pub struct Pane {
 }
 
 impl Pane {
+    /// Creates a new, empty `Pane` with the given dimensions.
+    /// If `width == 0` or `height == 0`, returns `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use stackline::prelude::*;
+    /// use stackline::tile::Wire;
+    ///
+    /// // Create a new Pane with width 6 and height 4
+    /// let mut pane = Pane::empty(6, 4).unwrap();
+    ///
+    /// // Place a horizontal wire on (2, 1) and (3, 1)
+    /// pane.set_tile((2, 1), Wire::new(Orientation::Horizontal));
+    /// pane.set_tile((3, 1), Wire::new(Orientation::Horizontal));
+    ///
+    /// // Put a signal on (2, 1)
+    /// pane.set_signal((2, 1), stackline::signal!((2, 1)));
+    ///
+    /// // Perform a simulation step
+    /// pane.step();
+    /// ```
     pub fn empty(width: usize, height: usize) -> Option<Self> {
         // TODO: check that width * height is a valid usize
         let length = width.checked_mul(height)?;
@@ -23,7 +45,24 @@ impl Pane {
         })
     }
 
-    /// Returns `Some((x + Δx, y + Δy))` iff `(x + Δx, y + Δy)` is inside the world
+    /// Given a `position = (x, y)` and an `offset = (Δx, Δy)`,
+    /// returns `Some((x + Δx, y + Δy))` if `(x + Δx, y + Δy)` is inside the `Pane`.
+    ///
+    /// If `(x + Δx, y + Δy)` fall outside of the bounds of `Pane`, returns `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use stackline::prelude::*;
+    /// #
+    /// let pane = Pane::empty(4, 2).unwrap();
+    ///
+    /// assert_eq!(pane.offset((1, 0), (2, 1)), Some((3, 1))); // (1 + 2, 0 + 1) = (3, 1), inside
+    ///
+    /// assert_eq!(pane.offset((1, 0), (-2, 0)), None); // (1 - 2, 0 + 0) = (-1, 0), outside
+    ///
+    /// assert_eq!(pane.offset((1, 0), (3, 0)), None); // (1 + 3, 0 + 0) = (4, 0), outside
+    /// ```
     #[inline]
     pub fn offset(&self, position: (usize, usize), offset: (i8, i8)) -> Option<(usize, usize)> {
         if offset.0 < 0 && (-offset.0) as usize > position.0
@@ -46,6 +85,21 @@ impl Pane {
     }
 
     // TODO: Have a Result instead of an Option
+    /// Returns an immutable referenec to the [`Tile`] at `position`.
+    /// If `position` is out of bounds, returns `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use stackline::prelude::*;
+    /// use stackline::tile::{FullTile, Wire};
+    ///
+    /// let mut pane = Pane::empty(4, 4).unwrap();
+    ///
+    /// pane.set_tile((0, 0), Wire::new(Orientation::Horizontal));
+    ///
+    /// let tile = pane.get((0, 0)).unwrap();
+    /// ```
     #[inline]
     pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<&'b FullTile> {
         if !self.in_bounds(position) {
@@ -93,16 +147,58 @@ impl Pane {
         Some(())
     }
 
-    /// Returns the [`State`] of the tile at `position`, if it exists.
+    /// Returns the [`State`] of the tile at `position`, if that tile exists.
+    /// If `position` is out of bounds, returns `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use stackline::prelude::*;
+    /// use stackline::tile::Wire;
+    ///
+    /// let mut pane = Pane::empty(1, 1).unwrap();
+    ///
+    /// // All tiles are initialized with the Idle state
+    /// assert_eq!(pane.get_state((0, 0)), Some(State::Idle));
+    ///
+    /// // Creating a new tile gives it the Idle state
+    /// pane.set_tile((0, 0), Wire::new(Orientation::Horizontal));
+    /// assert_eq!(pane.get_state((0, 0)), Some(State::Idle));
+    ///
+    /// // We manually set the state to Dormant and observe the change
+    /// pane.get_mut((0, 0)).unwrap().set_state(State::Dormant);
+    /// assert_eq!(pane.get_state((0, 0)), Some(State::Dormant));
+    /// ```
     #[inline]
     pub fn get_state(&self, position: (usize, usize)) -> Option<State> {
         self.get(position).map(|x| x.state().clone())
     }
 
     /// Sets the signal for the tile at `position` to `signal`.
-    /// Returns `Some` iff:
-    /// - the tile exists
-    /// - the tile accepts a signal (ie. it isn't empty)
+    /// Returns `Some(())` if the tile exists and the tile can have a signal.
+    ///
+    /// This function does not check the tile's [`accepts_signal`](Tile::accepts_signal) method.
+    /// It will also overwrite any signal already present.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use stackline::prelude::*;
+    /// use stackline::tile::Diode;
+    ///
+    /// let mut pane = Pane::empty(2, 1).unwrap();
+    ///
+    /// pane.set_tile((0, 0), Diode::new(Direction::Right));
+    /// pane.set_tile((1, 0), Diode::new(Direction::Down));
+    ///
+    /// // The signal for a tile is initially None
+    /// assert!(pane.get((0, 0)).unwrap().signal().is_none());
+    ///
+    /// // We set it to something else
+    /// pane.set_signal((0, 0), stackline::signal!((0, 0), Direction::Right)).unwrap();
+    ///
+    /// assert!(pane.get((0, 0)).unwrap().signal().is_some());
+    /// ```
     #[inline]
     pub fn set_signal(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
         signal.set_position(position);
@@ -116,6 +212,19 @@ impl Pane {
         }
     }
 
+    /// Returns `true` if `position` is within the bounds of the pane.
+    /// Returns `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use stackline::prelude::*;
+    /// let pane = Pane::empty(2, 3).unwrap();
+    ///
+    /// assert!(pane.in_bounds((0, 0)));
+    /// assert!(pane.in_bounds((1, 2)));
+    /// assert!(!pane.in_bounds((10, 10)));
+    /// ```
     #[inline]
     pub fn in_bounds(&self, position: (usize, usize)) -> bool {
         position.0 < self.width.get() && position.1 < self.height.get()
