@@ -11,3 +11,8 @@ palette = "0.6"
 
 [dev-dependencies]
 colored = "2.0"
+criterion = { version = "0.3.5", features = ["html_reports"] }
+
+[[bench]]
+name = "dispatch"
+harness = false
