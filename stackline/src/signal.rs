@@ -11,7 +11,7 @@ impl Value {
     pub fn as_number(&self) -> Option<f64> {
         match self {
             Value::Number(x) => Some(*x),
-            _ => None
+            _ => None,
         }
     }
 

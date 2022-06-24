@@ -38,7 +38,7 @@ impl Tile for Wire {
         let ch = match self.0 {
             Orientation::Horizontal => '-',
             Orientation::Vertical => '|',
-            Orientation::Any => '+'
+            Orientation::Any => '+',
         };
 
         surface.set(x, y, TextChar::from_state(ch, state));
@@ -119,9 +119,9 @@ impl Tile for Resistor {
 
     fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
         let ch = match self.direction {
-            Direction::Up => '\u{219f}', // Upwards Two Headed Arrow
-            Direction::Down => '\u{21a1}', // Downwards Two Headed Arrow
-            Direction::Left => '\u{219e}', // Leftwards Two Headed Arrow
+            Direction::Up => '\u{219f}',    // Upwards Two Headed Arrow
+            Direction::Down => '\u{21a1}',  // Downwards Two Headed Arrow
+            Direction::Left => '\u{219e}',  // Leftwards Two Headed Arrow
             Direction::Right => '\u{21a0}', // Rightwards Two Headed Arrow
         };
 

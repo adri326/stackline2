@@ -41,7 +41,7 @@ impl TextChar {
                 State::Active => Srgb::new(220, 255, 255),
                 State::Dormant => Srgb::new(100, 60, 60),
             },
-            bg: None
+            bg: None,
         }
     }
 }
@@ -51,7 +51,7 @@ impl Default for TextChar {
         Self {
             ch: ' ',
             fg: Srgb::new(255, 255, 255),
-            bg: None
+            bg: None,
         }
     }
 }
@@ -136,8 +136,7 @@ impl std::fmt::Display for TextSurface {
         for y in 0..self.height {
             for x in 0..self.width {
                 let ch = self.chars[y * self.width + x];
-                let mut string = String::from(ch.ch)
-                    .truecolor(ch.fg.red, ch.fg.green, ch.fg.blue);
+                let mut string = String::from(ch.ch).truecolor(ch.fg.red, ch.fg.green, ch.fg.blue);
 
                 if let Some(bg) = ch.bg {
                     string = string.on_truecolor(bg.red, bg.green, bg.blue);

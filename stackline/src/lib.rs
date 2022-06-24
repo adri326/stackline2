@@ -35,7 +35,7 @@ pub mod prelude {
     pub use crate::pane::Pane;
     pub use crate::World;
 
-    pub use crate::text::{TextSurface, TextChar};
+    pub use crate::text::{TextChar, TextSurface};
 
     pub use crate::context::UpdateContext;
     pub use crate::signal::{Signal, Value};

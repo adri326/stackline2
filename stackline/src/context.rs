@@ -92,9 +92,7 @@ impl<'a> UpdateContext<'a> {
             position,
             state: tile.state(),
             signal: tile.take_signal(),
-            pane: unsafe {
-                NonNull::new_unchecked(&mut *pane)
-            },
+            pane: unsafe { NonNull::new_unchecked(&mut *pane) },
             commit,
         };
 
@@ -329,9 +327,11 @@ impl<'a> UpdateContext<'a> {
     pub fn keep(&mut self) {
         unsafe {
             // SAFETY: we only access self.pane[self.position].signal, not self.pane[self.position].cell
-            self.pane.as_mut().get_mut(self.position).unwrap_or_else(|| unreachable!()).set_signal(
-                std::mem::take(&mut self.signal)
-            );
+            self.pane
+                .as_mut()
+                .get_mut(self.position)
+                .unwrap_or_else(|| unreachable!())
+                .set_signal(std::mem::take(&mut self.signal));
         }
     }
 }

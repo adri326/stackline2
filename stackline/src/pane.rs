@@ -338,7 +338,16 @@ mod test {
         use Orientation::*;
 
         let mut surface = TextSurface::new(3, 3);
-        let mut pane = test_tile_setup!(2, 2, [Wire::new(Horizontal), Wire::new(Vertical), Wire::new(Any), ()]);
+        let mut pane = test_tile_setup!(
+            2,
+            2,
+            [
+                Wire::new(Horizontal),
+                Wire::new(Vertical),
+                Wire::new(Any),
+                ()
+            ]
+        );
         test_set_signal!(pane, (0, 0), Direction::Right);
 
         pane.draw(0, 0, &mut surface);
