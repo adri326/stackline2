@@ -1,22 +1,21 @@
 use super::*;
 use dyn_clone::{clone_box, DynClone};
-use enum_dispatch::enum_dispatch;
-
-mod wire;
-pub use wire::*;
 
 mod full;
 pub use full::*;
 
-// TODO: implement a build.rs to auto-generate AnyTile
-
-#[derive(Clone, Debug)]
-#[enum_dispatch]
-pub enum AnyTile {
-    Wire(Wire),
-    Diode(Diode),
-    Resistor(Resistor),
-}
+// Generated rust file containing the AnyTile enum, which combines the structs implementing Tile found in tiles/.
+// Its definition looks like this:
+// #[derive(Clone, Debug)]
+// #[enum_dispatch]
+// pub enum AnyTile {
+//     Wire(Wire),
+//     Diode(Diode),
+//     /* snip */
+// }
+//
+// Note that all the implementing types will be read from the files in tiles/ and re-exported.
+include!(concat!(env!("OUT_DIR"), "/anytile.rs"));
 
 #[enum_dispatch(AnyTile)]
 pub trait Tile: DynClone + std::fmt::Debug {
