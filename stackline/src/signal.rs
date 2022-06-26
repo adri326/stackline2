@@ -177,7 +177,13 @@ impl Signal {
         self.stack.len()
     }
 
-    // TODO: stack(), stack_mut() and other stack manipulation tools
+    pub fn stack(&self) -> &Vec<Value> {
+        &self.stack
+    }
+
+    pub fn stack_mut(&mut self) -> &mut Vec<Value> {
+        &mut self.stack
+    }
 }
 
 /// Creates a signal with initial values in its stack.

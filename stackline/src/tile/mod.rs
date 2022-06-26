@@ -39,11 +39,16 @@ include!(concat!(env!("OUT_DIR"), "/anytile.rs"));
 /// Let's start by implementing a basic [`Tile`], which simply forwards any incomming [`Signal`] to its right.
 /// Create a file in the `tiles/` folder containing the following
 ///
-/// ```ignore
+/// ```no_run
 /// // First, import the needed types. Because we are writing files
 /// // that will be part of the "stackline" crate, we have to import them using `crate`:
+/// # /*
 /// use crate::prelude::*;
 /// use crate::tile::prelude::*;
+/// # */
+/// # // Doctests don't allow us to use `crate` to refer to the current crate
+/// # use stackline::prelude::*;
+/// # use stackline::tile::prelude::*;
 ///
 /// // Tiles must implement Clone and Debug
 /// #[derive(Clone, Debug)]
@@ -68,7 +73,8 @@ include!(concat!(env!("OUT_DIR"), "/anytile.rs"));
 ///
 ///             // First, get the coordinates of the tile to our right:
 ///             if let Some(right_position) = context.offset((1, 0)) {
-///                 // Then, send the signal! We need to tell that we are moving the signal to the right.
+///                 // Then, send the signal!
+///                 // We also need to tell the signal that it is moving to the right.
 ///                 context.send(right_position, signal.moved(Direction::Right));
 ///             }
 ///         }
