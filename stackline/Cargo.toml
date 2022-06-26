@@ -6,9 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dyn-clone = "1.0"
+# dyn-clone = "1.0"
 palette = "0.6"
 enum_dispatch = "0.3"
+contracts = { version = "0.6.3", features = ["override_debug"] }
 
 [dev-dependencies]
 colored = "2.0"

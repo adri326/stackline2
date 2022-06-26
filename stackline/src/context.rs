@@ -1,6 +1,8 @@
 use super::*;
 use std::ptr::NonNull;
 
+// TODO: write VecCell, to make miri happy
+
 /** Provides an interface between a [`Tile`] and its parent [`Pane`] during [`Tile::update`].
     All actions performed through `UpdateContext` will be executed *after* all the tiles have updated.
 
@@ -14,11 +16,12 @@ use std::ptr::NonNull;
 
     As a result, there are a few oddities to take note of:
 
-    - If a [`Signal`] was in the updated tile, then it will be moved into the `UpdateContext`.
+    - If a [`Signal`] was in the updated tile, then it will be *moved* into the `UpdateContext`.
       If you wish to put the signal back into its tile,
       then you will need to call [`keep`](UpdateContext::keep) or [`send`](UpdateContext::send).
       See [`take_signal`](UpdateContext::take_signal) for more information.
-    - Most methods that
+    - Most methods that modify the state of a tile will instead store the modified state in a temporary buffer
+      and apply the modifications after every tile was updated. The only exception to this is [`UpdateContext::keep`].
 
     # Example
 
@@ -73,7 +76,23 @@ pub struct UpdateContext<'a> {
 // SAFETY: self.pane.tiles[self.position].cell may not be accessed by any method of UpdateContext
 impl<'a> UpdateContext<'a> {
     /// Creates a new UpdateContext
-    /// Returns `None` if the tile was already updated or is empty
+    /// Returns `None` if the tile was already updated, is empty or does not exist.
+    #[ensures(
+        old(pane.get(position).is_none()) -> ret.is_none(),
+        "Should return None if the tile does not exist"
+    )]
+    #[ensures(
+        old(pane.get(position).is_some() && pane.get(position).unwrap().updated) -> ret.is_none(),
+        "Should return None if the tile was already updated"
+    )]
+    #[ensures(
+        old(pane.get(position).is_some() && pane.get(position).unwrap().get().is_none()) -> ret.is_none(),
+        "Should return None if the tile is empty"
+    )]
+    #[ensures(
+        ret.is_some() -> ret.as_ref().unwrap().0.commit.updates.iter().find(|&&x| x == position).is_some(),
+        "Should add an entry in self.commit.updates if result is Some"
+    )]
     pub(crate) fn new(
         pane: &'a mut Pane,
         position: (usize, usize),
@@ -124,7 +143,25 @@ impl<'a> UpdateContext<'a> {
         self.position
     }
 
-    /// Returns the [signal](crate::FullTile::signal) of the currently updated tile.
+    /// Returns the [`width`](Pane::width) of the current [`Pane`].
+    #[inline]
+    pub fn width(&self) -> NonZeroUsize {
+        unsafe {
+            // SAFETY: we only read self.pane.width
+            self.pane.as_ref().width()
+        }
+    }
+
+    /// Returns the [`height`](Pane::height) of the current [`Pane`].
+    #[inline]
+    pub fn height(&self) -> NonZeroUsize {
+        unsafe {
+            // SAFETY: we only read self.pane.height
+            self.pane.as_ref().height()
+        }
+    }
+
+    /// Returns a reference to the [signal](crate::FullTile::signal) of the currently updated tile.
     #[inline]
     pub fn signal<'b>(&'b self) -> Option<&'b Signal>
     where
@@ -160,6 +197,7 @@ impl<'a> UpdateContext<'a> {
     /// }
     /// ```
     #[inline]
+    #[ensures(self.signal.is_none(), "Should leave the signal to None")]
     pub fn take_signal(&mut self) -> Option<Signal> {
         std::mem::take(&mut self.signal)
     }
@@ -176,8 +214,14 @@ impl<'a> UpdateContext<'a> {
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     #[inline]
+    #[ensures(
+        self.commit.states.iter().find(|(x, y, _)| self.position == (*x, *y)).is_some(),
+        "Should add an entry in self.commit.states"
+    )]
+    #[ensures(self.state == state)]
     pub fn set_state(&mut self, state: State) {
-        self.commit.set_state(self.position, state);
+        self.state = state;
+        self.commit.set_state(self.position, self.state);
     }
 
     /// Sets the state of the current tile to `state.next()`
@@ -186,13 +230,23 @@ impl<'a> UpdateContext<'a> {
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     #[inline]
+    #[ensures(
+        self.commit.states.iter().find(|(x, y, _)| self.position == (*x, *y)).is_some(),
+        "Should add an entry in self.commit.states"
+    )]
+    #[ensures(self.state == old(self.state).next())]
     pub fn next_state(&mut self) {
-        self.commit.set_state(self.position, self.state.next());
+        self.state = self.state.next();
+        self.commit.set_state(self.position, self.state);
     }
 
     /// Returns an immutable reference to the [FullTile] at `pos` in the current [Pane].
     /// Returns `None` if the tile is borrowed mutably, if it is the current tile or if it does not exist.
     #[inline]
+    #[ensures(
+        ret.is_some() -> ret.unwrap().get().is_some() ->
+        std::ptr::addr_of!(*ret.unwrap().get().unwrap()) != self.current_ptr()
+    )]
     pub fn get<'b>(&'b self, pos: (usize, usize)) -> Option<&'b FullTile>
     where
         'a: 'b,
@@ -218,10 +272,11 @@ impl<'a> UpdateContext<'a> {
 
     /// Returns `true` iff `(x, y)` is within the bounds of the current pane.
     #[inline]
-    pub fn in_bounds(&self, pos: (usize, usize)) -> bool {
+    #[ensures(ret == true -> position.0 < self.width().get() && position.1 < self.height().get())]
+    pub fn in_bounds(&self, position: (usize, usize)) -> bool {
         unsafe {
             // SAFETY: Pane::in_bounds does not read `self.pane.cells`
-            self.pane.as_ref().in_bounds(pos)
+            self.pane.as_ref().in_bounds(position)
         }
     }
 
@@ -238,6 +293,7 @@ impl<'a> UpdateContext<'a> {
     /// Returns whether or not the tile at `pos` accepts a signal coming from `direction`.
     /// If the tile does not exist, then this function will return `false`.
     #[inline]
+    #[ensures(ret == true -> self.get(pos).is_some() && self.get(pos).unwrap().get().is_some())]
     pub fn accepts_signal(&self, pos: (usize, usize), direction: Direction) -> bool {
         match self.get(pos) {
             Some(tile) => tile.accepts_signal(direction),
@@ -276,9 +332,10 @@ impl<'a> UpdateContext<'a> {
         }
     }
 
+    // TODO: return Result
     /// Sends a signal to be stored in a cell (may be the current one), overriding any signal that was in that cell.
     ///
-    /// Returns true if the signal was stored in a cell, false otherwise.
+    /// Returns Some(()) if the signal was stored in a cell, None otherwise.
     /// The target cell's state will be set to `Active` if it received the signal.
     /// The signal's `position` will be set to `pos`.
     ///
@@ -286,16 +343,46 @@ impl<'a> UpdateContext<'a> {
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     /// See [`keep`](UpdateContext::keep) for a variant of this method that takes effect immediately.
-    pub fn send(&mut self, pos: (usize, usize), mut signal: Signal) -> Option<()> {
-        signal.set_position(pos);
+    #[ensures(
+        !self.in_bounds(position) -> ret.is_none(),
+        "Should return None if position is out of bounds"
+    )]
+    #[ensures(
+        ret.is_some() -> self.commit.signals.iter().find(|(x, y, _)| position == (*x, *y)).is_some(),
+        "Should add an entry in self.commit.signals if result is Some"
+    )]
+    pub fn force_send(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
+        signal.set_position(position);
 
-        if !self.in_bounds(pos) {
+        if !self.in_bounds(position) {
             return None;
         }
 
-        self.commit.send(pos, signal);
+        self.commit.send(position, signal);
 
         Some(())
+    }
+
+    /// Sends a signal to `position` if there is a tile at `position` that will accept our signal
+    ///
+    /// # Note
+    ///
+    /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
+    /// See [`keep`](UpdateContext::keep) for a variant of this method that takes effect immediately.
+    #[ensures(
+        !self.in_bounds(position) -> ret.is_none(),
+        "Should return None if position is out of bounds"
+    )]
+    #[ensures(
+        ret.is_some() -> self.commit.signals.iter().find(|(x, y, _)| position == (*x, *y)).is_some(),
+        "Should add an entry in self.commit.signals if result is Some"
+    )]
+    pub fn send(&mut self, position: (usize, usize), signal: Signal) -> Option<()> {
+        if self.accepts_signal(position, signal.direction()) {
+            self.force_send(position, signal)
+        } else {
+            None
+        }
     }
 
     /// Stores the current signal back in the current tile, guaranteeing that it will stay there for
@@ -307,6 +394,8 @@ impl<'a> UpdateContext<'a> {
     /// This function will [`std::mem::take`] the signal stored in `UpdateContext`, similar to [`take_signal`](UpdateContext::take_signal).
     /// If you wish to modify or send copies of the signal, then you will need to call [`signal`](UpdateContext::signal) beforehand and make
     /// clones of the signal before calling `keep`.
+    ///
+    /// If `take_signal` or `keep` are called before this functions, then it will do nothing.
     ///
     /// # Example
     ///
@@ -324,7 +413,12 @@ impl<'a> UpdateContext<'a> {
     ///     }
     /// }
     /// ```
+    #[ensures(self.signal.is_none())]
     pub fn keep(&mut self) {
+        if self.signal.is_none() {
+            return;
+        }
+
         unsafe {
             // SAFETY: we only access self.pane[self.position].signal, not self.pane[self.position].cell
             self.pane
@@ -333,6 +427,14 @@ impl<'a> UpdateContext<'a> {
                 .unwrap_or_else(|| unreachable!())
                 .set_signal(std::mem::take(&mut self.signal));
         }
+    }
+
+    /// Returns a pointer to self.pane[self.position].cell
+    fn current_ptr(&self) -> *const AnyTile {
+        let reference = unsafe {
+            self.pane.as_ref().get(self.position).unwrap()
+        };
+        &*reference.get().unwrap()
     }
 }
 

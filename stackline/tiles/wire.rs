@@ -1,6 +1,8 @@
 //! Wires and diodes
 
-use super::*;
+// use super::*;
+use crate::prelude::*;
+use crate::tile::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct Wire(Orientation);
@@ -20,7 +22,7 @@ impl Tile for Wire {
                 }
 
                 if let Some(pos) = context.accepts_direction(direction) {
-                    context.send(pos, signal.clone_move(direction));
+                    context.force_send(pos, signal.clone_move(direction));
                 }
             }
         }
@@ -62,7 +64,7 @@ impl Tile for Diode {
                 return;
             }
 
-            if let Some(pos) = context.accepts_direction(self.0) {
+            if let Some(pos) = context.offset(self.0.into_offset()) {
                 context.send(pos, signal.moved(self.0));
             }
         }
@@ -102,7 +104,7 @@ impl Resistor {
 impl Tile for Resistor {
     fn update<'b>(&'b mut self, mut context: UpdateContext<'b>) {
         if let Some(signal) = std::mem::take(&mut self.signal) {
-            if let Some(pos) = context.accepts_direction(self.direction) {
+            if let Some(pos) = context.offset(self.direction.into_offset()) {
                 context.send(pos, signal.moved(self.direction));
             }
         }

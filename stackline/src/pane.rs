@@ -32,6 +32,8 @@ impl Pane {
     /// // Perform a simulation step
     /// pane.step();
     /// ```
+    #[ensures(ret.is_some() -> width > 0)]
+    #[ensures(ret.is_some() -> height > 0)]
     pub fn empty(width: usize, height: usize) -> Option<Self> {
         // TODO: check that width * height is a valid usize
         let length = width.checked_mul(height)?;
@@ -43,6 +45,36 @@ impl Pane {
 
             signals: Vec::new(),
         })
+    }
+
+    /// Returns the width of the current pane
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use stackline::prelude::*;
+    /// let pane = Pane::empty(4, 7).unwrap();
+    ///
+    /// assert_eq!(pane.width().get(), 4);
+    /// ```
+    #[inline]
+    pub fn width(&self) -> NonZeroUsize {
+        self.width
+    }
+
+    /// Returns the height of the current pane
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use stackline::prelude::*;
+    /// let pane = Pane::empty(4, 7).unwrap();
+    ///
+    /// assert_eq!(pane.height().get(), 7);
+    /// ```
+    #[inline]
+    pub fn height(&self) -> NonZeroUsize {
+        self.height
     }
 
     /// Given a `position = (x, y)` and an `offset = (Δx, Δy)`,
@@ -64,6 +96,10 @@ impl Pane {
     /// assert_eq!(pane.offset((1, 0), (3, 0)), None); // (1 + 3, 0 + 0) = (4, 0), outside
     /// ```
     #[inline]
+    #[ensures(ret.is_some() -> position.0 as isize + offset.0 as isize >= 0)]
+    #[ensures(ret.is_some() -> position.1 as isize + offset.1 as isize >= 0)]
+    #[ensures(ret.is_some() -> position.0 as isize + (offset.0 as isize) < self.width.get() as isize)]
+    #[ensures(ret.is_some() -> position.1 as isize + (offset.1 as isize) < self.height.get() as isize)]
     pub fn offset(&self, position: (usize, usize), offset: (i8, i8)) -> Option<(usize, usize)> {
         if offset.0 < 0 && (-offset.0) as usize > position.0
             || offset.1 < 0 && (-offset.1) as usize > position.1
@@ -101,6 +137,7 @@ impl Pane {
     /// let tile = pane.get((0, 0)).unwrap();
     /// ```
     #[inline]
+    #[ensures(self.in_bounds(position) -> ret.is_some())]
     pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<&'b FullTile> {
         if !self.in_bounds(position) {
             return None;
@@ -125,6 +162,7 @@ impl Pane {
     /// tile.set_state(State::Active);
     /// ```
     #[inline]
+    #[ensures(old(self.in_bounds(position)) -> ret.is_some())]
     pub fn get_mut<'b>(&'b mut self, position: (usize, usize)) -> Option<&'b mut FullTile> {
         if !self.in_bounds(position) {
             return None;
@@ -136,6 +174,7 @@ impl Pane {
 
     /// Sets the tile at `position` to `tile`. `T` must either implement [`Tile`] or be `()`.
     #[inline]
+    #[ensures(self.in_bounds(position) -> ret.is_some())]
     pub fn set_tile<T>(&mut self, position: (usize, usize), tile: T) -> Option<()>
     where
         FullTile: From<T>,
@@ -170,6 +209,7 @@ impl Pane {
     /// assert_eq!(pane.get_state((0, 0)), Some(State::Dormant));
     /// ```
     #[inline]
+    #[ensures(self.in_bounds(position) -> ret.is_some())]
     pub fn get_state(&self, position: (usize, usize)) -> Option<State> {
         self.get(position).map(|x| x.state().clone())
     }
@@ -200,6 +240,8 @@ impl Pane {
     /// assert!(pane.get((0, 0)).unwrap().signal().is_some());
     /// ```
     #[inline]
+    #[ensures(ret.is_some() -> self.in_bounds(position) && self.get(position).unwrap().get().is_some())]
+    #[ensures(!self.in_bounds(position) -> ret.is_none())]
     pub fn set_signal(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
         signal.set_position(position);
         if let Some(tile) = self.get_mut(position) {
@@ -231,6 +273,8 @@ impl Pane {
     }
 
     #[inline]
+    #[ensures(self.in_bounds(position) -> self.get(position).unwrap().updated)]
+    #[ensures(!self.in_bounds(position) -> ret.is_none())]
     fn update(&mut self, position: (usize, usize), commit: &mut UpdateCommit) -> Option<()> {
         // NOTE: Tiles will only be updated once as per UpdateContext::new
         let (ctx, tile) = UpdateContext::new(self, position, commit)?;
