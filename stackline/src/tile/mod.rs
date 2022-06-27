@@ -73,9 +73,9 @@ include!(concat!(env!("OUT_DIR"), "/anytile.rs"));
 ///
 ///             // First, get the coordinates of the tile to our right:
 ///             if let Some(right_position) = context.offset((1, 0)) {
-///                 // Then, send the signal!
-///                 // We also need to tell the signal that it is moving to the right.
-///                 context.send(right_position, signal.moved(Direction::Right));
+///                 // Then, send the signal! We also need to tell `send`
+///                 // that the signal is moving to the right.
+///                 context.send(right_position, Direction::Right, signal);
 ///             }
 ///         }
 ///

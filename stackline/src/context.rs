@@ -45,14 +45,10 @@ use std::ptr::NonNull;
                 // Update the internal state
                 self.0 += 1;
 
-                // Send the signal along: first, get the offset (Δx, Δy) associated with its direction and the tile at (x+Δx,y+Δy).
-                // Note that the next three lines can be shortened to `ctx.accepts_direction(signal.direction())`
-                if let Some((pos, tile)) = ctx.get_offset(signal.direction().into_offset()) {
-                    // Then, check that `tile` accepts signals
-                    if tile.accepts_signal(signal.direction()) {
-                        // Finally, send the signal
-                        ctx.send(pos, signal).unwrap_or_else(|| unreachable!());
-                    }
+                // Send the signal along: first, get the offset (Δx, Δy) associated with its direction and the position at (x+Δx,y+Δy).
+                if let Some(pos) = ctx.offset(signal.direction().into_offset()) {
+                    // Finally, send the signal
+                    let _ = ctx.send(pos, signal.direction(), signal);
                 }
             }
         }
@@ -315,8 +311,8 @@ impl<'a> UpdateContext<'a> {
     /// # impl Tile for MyTile {
     /// fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
     ///     if let Some(signal) = ctx.take_signal() {
-    ///         if let Some(pos) = ctx.accepts_direction(Direction::Down) {
-    ///             ctx.send(pos, signal);
+    ///         if let Some(pos) = ctx.offset(Direction::Down.into_offset()) {
+    ///             let _ = ctx.send(pos, Direction::Down, signal);
     ///         }
     ///     }
     /// }
@@ -337,51 +333,57 @@ impl<'a> UpdateContext<'a> {
     ///
     /// Returns Some(()) if the signal was stored in a cell, None otherwise.
     /// The target cell's state will be set to `Active` if it received the signal.
-    /// The signal's `position` will be set to `pos`.
+    /// The signal's `position` will be set to `position`.
+    ///
+    /// You should change the `direction` of the signal before calling this function.
     ///
     /// # Note
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     /// See [`keep`](UpdateContext::keep) for a variant of this method that takes effect immediately.
     #[ensures(
-        !self.in_bounds(position) -> ret.is_none(),
+        !self.in_bounds(position) -> ret.is_err(),
         "Should return None if position is out of bounds"
     )]
     #[ensures(
-        ret.is_some() -> self.commit.signals.iter().find(|(x, y, _)| position == (*x, *y)).is_some(),
+        ret.is_ok() -> self.commit.signals.iter().find(|(x, y, _)| position == (*x, *y)).is_some(),
         "Should add an entry in self.commit.signals if result is Some"
     )]
-    pub fn force_send(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
-        signal.set_position(position);
-
+    pub fn force_send(&mut self, position: (usize, usize), mut signal: Signal) -> Result<(), SendError> {
         if !self.in_bounds(position) {
-            return None;
+            return Err(SendError(signal));
         }
+
+        signal.set_position(position);
 
         self.commit.send(position, signal);
 
-        Some(())
+        Ok(())
     }
 
-    /// Sends a signal to `position` if there is a tile at `position` that will accept our signal
+    /// Sends a signal to `position` if there is a tile at `position` that will accept our signal.
+    /// Sets the signal direction to `direction` and its position to `position`.
     ///
     /// # Note
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     /// See [`keep`](UpdateContext::keep) for a variant of this method that takes effect immediately.
     #[ensures(
-        !self.in_bounds(position) -> ret.is_none(),
+        !self.in_bounds(position) -> ret.is_err(),
         "Should return None if position is out of bounds"
     )]
     #[ensures(
-        ret.is_some() -> self.commit.signals.iter().find(|(x, y, _)| position == (*x, *y)).is_some(),
+        ret.is_ok() -> self.commit.signals.iter().find(|(x, y, _)| position == (*x, *y)).is_some(),
         "Should add an entry in self.commit.signals if result is Some"
     )]
-    pub fn send(&mut self, position: (usize, usize), signal: Signal) -> Option<()> {
-        if self.accepts_signal(position, signal.direction()) {
-            self.force_send(position, signal)
+    pub fn send(&mut self, position: (usize, usize), direction: Direction, signal: Signal) -> Result<(), SendError> {
+        if self.accepts_signal(position, direction) {
+            let original_direction = signal.direction();
+            self.force_send(position, signal.moved(direction)).map_err(|e| {
+                SendError(e.0.moved(original_direction))
+            })
         } else {
-            None
+            Err(SendError(signal))
         }
     }
 
@@ -435,6 +437,22 @@ impl<'a> UpdateContext<'a> {
             self.pane.as_ref().get(self.position).unwrap()
         };
         &*reference.get().unwrap()
+    }
+}
+
+pub struct SendError(pub Signal);
+
+impl std::fmt::Debug for SendError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fmt.debug_struct("SendError")
+            .field("signal", &"Signal {{...}}")
+            .finish()
+    }
+}
+
+impl std::fmt::Display for SendError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(fmt, "Couldn't send signal!")
     }
 }
 

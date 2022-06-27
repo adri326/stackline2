@@ -1,6 +1,5 @@
 //! Wires and diodes
 
-// use super::*;
 use crate::prelude::*;
 use crate::tile::prelude::*;
 
@@ -22,7 +21,7 @@ impl Tile for Wire {
                 }
 
                 if let Some(pos) = context.accepts_direction(direction) {
-                    context.force_send(pos, signal.clone_move(direction));
+                    context.force_send(pos, signal.clone_move(direction)).unwrap_or_else(|_| unreachable!());
                 }
             }
         }
@@ -65,7 +64,7 @@ impl Tile for Diode {
             }
 
             if let Some(pos) = context.offset(self.0.into_offset()) {
-                context.send(pos, signal.moved(self.0));
+                let _ = context.send(pos, self.0, signal);
             }
         }
 
@@ -105,7 +104,7 @@ impl Tile for Resistor {
     fn update<'b>(&'b mut self, mut context: UpdateContext<'b>) {
         if let Some(signal) = std::mem::take(&mut self.signal) {
             if let Some(pos) = context.offset(self.direction.into_offset()) {
-                context.send(pos, signal.moved(self.direction));
+                let _ = context.send(pos, self.direction, signal);
             }
         }
 

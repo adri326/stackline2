@@ -1,5 +1,3 @@
-use super::*;
-
 #[macro_export]
 macro_rules! test_tile_setup {
     ( $width:expr, $height:expr, [ $( $x:expr ),* ] ) => {{

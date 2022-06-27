@@ -98,7 +98,7 @@ impl Signal {
     ///     if let Some(signal) = ctx.take_signal() {
     ///         // We have a signal, see if it can be sent down
     ///         if let Some(pos) = ctx.accepts_direction(direction) {
-    ///             ctx.send(pos, signal.moved(direction));
+    ///             ctx.send(pos, direction, signal);
     ///         }
     ///     }
     /// }
