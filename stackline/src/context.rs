@@ -1,5 +1,6 @@
 use super::*;
 use std::ptr::NonNull;
+use veccell::{VecRef, VecRefMut};
 
 // TODO: write VecCell, to make miri happy
 
@@ -55,15 +56,10 @@ use std::ptr::NonNull;
     }
 
     ```
-
-    # Safety
-
-    Because [`Tile::update`] requires a `&mut self` reference, the current [`Tile`] cannot be accessed through [`UpdateContext::get`].
-    This structure stores the [`State`] and [`Signal`] of the [`FullTile`] containing the current tile, so these can be accessed nonetheless, and it is still possible and safe to call [`UpdateContext::send`] on the current position.
 **/
 pub struct UpdateContext<'a> {
     position: (usize, usize),
-    pane: NonNull<Pane>,
+    pane: &'a Pane,
     state: State,
     signal: Option<Signal>,
     commit: &'a mut UpdateCommit,
@@ -82,7 +78,7 @@ impl<'a> UpdateContext<'a> {
         "Should return None if the tile was already updated"
     )]
     #[ensures(
-        old(pane.get(position).is_some() && pane.get(position).unwrap().get().is_none()) -> ret.is_none(),
+        old(pane.get(position).is_some() && (*pane.get(position).unwrap()).get().is_none()) -> ret.is_none(),
         "Should return None if the tile is empty"
     )]
     #[ensures(
@@ -90,30 +86,28 @@ impl<'a> UpdateContext<'a> {
         "Should add an entry in self.commit.updates if result is Some"
     )]
     pub(crate) fn new(
-        pane: &'a mut Pane,
+        pane: &'a Pane,
         position: (usize, usize),
         commit: &'a mut UpdateCommit,
-    ) -> Option<(UpdateContext<'a>, &'a mut AnyTile)> {
-        let mut tile = pane.get_mut(position)?;
+    ) -> Option<(UpdateContext<'a>, VecRefMut<'a, FullTile>)> {
+        let mut tile = pane.borrow_mut(position)?;
         if tile.updated {
             return None;
         }
         tile.updated = true; // prevent duplicate updates
         commit.updates.push(position);
 
-        let ptr: *mut AnyTile = &mut **(tile.get_mut().as_mut()?);
-
         let res = Self {
             position,
             state: tile.state(),
             signal: tile.take_signal(),
-            pane: unsafe { NonNull::new_unchecked(&mut *pane) },
+            pane: pane,
             commit,
         };
 
         // SAFETY: ptr is a valid pointer
         // SAFETY: aliasing is prevented by the invariants of UpdateContext
-        Some((res, unsafe { &mut *ptr }))
+        Some((res, tile))
     }
 
     /// Returns the position of the currently updated tile.
@@ -142,19 +136,13 @@ impl<'a> UpdateContext<'a> {
     /// Returns the [`width`](Pane::width) of the current [`Pane`].
     #[inline]
     pub fn width(&self) -> NonZeroUsize {
-        unsafe {
-            // SAFETY: we only read self.pane.width
-            self.pane.as_ref().width()
-        }
+        self.pane.width()
     }
 
     /// Returns the [`height`](Pane::height) of the current [`Pane`].
     #[inline]
     pub fn height(&self) -> NonZeroUsize {
-        unsafe {
-            // SAFETY: we only read self.pane.height
-            self.pane.as_ref().height()
-        }
+        self.pane.height()
     }
 
     /// Returns a reference to the [signal](crate::FullTile::signal) of the currently updated tile.
@@ -239,46 +227,33 @@ impl<'a> UpdateContext<'a> {
     /// Returns an immutable reference to the [FullTile] at `pos` in the current [Pane].
     /// Returns `None` if the tile is borrowed mutably, if it is the current tile or if it does not exist.
     #[inline]
-    #[ensures(
-        ret.is_some() -> ret.unwrap().get().is_some() ->
-        std::ptr::addr_of!(*ret.unwrap().get().unwrap()) != self.current_ptr()
-    )]
-    pub fn get<'b>(&'b self, pos: (usize, usize)) -> Option<&'b FullTile>
+    pub fn get<'b>(&'b self, pos: (usize, usize)) -> Option<VecRef<'b, FullTile>>
     where
         'a: 'b,
     {
         if self.position == pos {
             None
         } else {
-            unsafe {
-                // SAFETY: pos != self.position, thus self.pane[self.position].cell cannot be accessed
-                self.pane.as_ref().get(pos)
-            }
+            self.pane.get(pos)
         }
     }
 
     /// Returns `Some((position.x + Δx, position.y + Δy))` iff `(x + Δx, y + Δy)` is inside the current pane.
     #[inline]
     pub fn offset(&self, offset: (i8, i8)) -> Option<(usize, usize)> {
-        unsafe {
-            // SAFETY: Pane::offset does not read `self.pane.cells`
-            self.pane.as_ref().offset(self.position, offset)
-        }
+        self.pane.offset(self.position, offset)
     }
 
     /// Returns `true` iff `(x, y)` is within the bounds of the current pane.
     #[inline]
     #[ensures(ret == true -> position.0 < self.width().get() && position.1 < self.height().get())]
     pub fn in_bounds(&self, position: (usize, usize)) -> bool {
-        unsafe {
-            // SAFETY: Pane::in_bounds does not read `self.pane.cells`
-            self.pane.as_ref().in_bounds(position)
-        }
+        self.pane.in_bounds(position)
     }
 
     /// Shortcut for calling both `ctx.offset(offset)` and `ctx.get(pos)`
     #[inline]
-    pub fn get_offset<'b>(&'b self, offset: (i8, i8)) -> Option<((usize, usize), &'b FullTile)>
+    pub fn get_offset<'b>(&'b self, offset: (i8, i8)) -> Option<((usize, usize), VecRef<'b, FullTile>)>
     where
         'a: 'b,
     {
@@ -289,7 +264,7 @@ impl<'a> UpdateContext<'a> {
     /// Returns whether or not the tile at `pos` accepts a signal coming from `direction`.
     /// If the tile does not exist, then this function will return `false`.
     #[inline]
-    #[ensures(ret == true -> self.get(pos).is_some() && self.get(pos).unwrap().get().is_some())]
+    #[ensures(ret == true -> self.get(pos).is_some() && (*self.get(pos).unwrap()).get().is_some())]
     pub fn accepts_signal(&self, pos: (usize, usize), direction: Direction) -> bool {
         match self.get(pos) {
             Some(tile) => tile.accepts_signal(direction),
@@ -387,57 +362,51 @@ impl<'a> UpdateContext<'a> {
         }
     }
 
-    /// Stores the current signal back in the current tile, guaranteeing that it will stay there for
-    /// this update cycle. See [`take_signal`](UpdateContext::take_signal) for more information.
-    ///
-    /// This method differs from [`send`](UpdateContext::send), as it takes action immediately.
-    /// The signal may also not be modified, as it would otherwise break the guarantees of [`Pane::step`].
-    ///
-    /// This function will [`std::mem::take`] the signal stored in `UpdateContext`, similar to [`take_signal`](UpdateContext::take_signal).
-    /// If you wish to modify or send copies of the signal, then you will need to call [`signal`](UpdateContext::signal) beforehand and make
-    /// clones of the signal before calling `keep`.
-    ///
-    /// If `take_signal` or `keep` are called before this functions, then it will do nothing.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use stackline::prelude::*;
-    /// #[derive(Clone, Debug)]
-    /// pub struct StorageTile {};
-    ///
-    /// impl Tile for StorageTile {
-    ///     fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
-    ///         if ctx.signal().is_some() {
-    ///             ctx.keep();
-    ///         }
-    ///         // If we weren't to do this, then the signal would get dropped here
-    ///     }
-    /// }
-    /// ```
-    #[ensures(self.signal.is_none())]
-    pub fn keep(&mut self) {
-        if self.signal.is_none() {
-            return;
-        }
+    // TODO: re-implement through UpdateCommit
 
-        unsafe {
-            // SAFETY: we only access self.pane[self.position].signal, not self.pane[self.position].cell
-            self.pane
-                .as_mut()
-                .get_mut(self.position)
-                .unwrap_or_else(|| unreachable!())
-                .set_signal(std::mem::take(&mut self.signal));
-        }
-    }
+    // /// Stores the current signal back in the current tile, guaranteeing that it will stay there for
+    // /// this update cycle. See [`take_signal`](UpdateContext::take_signal) for more information.
+    // ///
+    // /// This method differs from [`send`](UpdateContext::send), as it takes action immediately.
+    // /// The signal may also not be modified, as it would otherwise break the guarantees of [`Pane::step`].
+    // ///
+    // /// This function will [`std::mem::take`] the signal stored in `UpdateContext`, similar to [`take_signal`](UpdateContext::take_signal).
+    // /// If you wish to modify or send copies of the signal, then you will need to call [`signal`](UpdateContext::signal) beforehand and make
+    // /// clones of the signal before calling `keep`.
+    // ///
+    // /// If `take_signal` or `keep` are called before this functions, then it will do nothing.
+    // ///
+    // /// # Example
+    // ///
+    // /// ```
+    // /// # use stackline::prelude::*;
+    // /// #[derive(Clone, Debug)]
+    // /// pub struct StorageTile {};
+    // ///
+    // /// impl Tile for StorageTile {
+    // ///     fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
+    // ///         if ctx.signal().is_some() {
+    // ///             ctx.keep();
+    // ///         }
+    // ///         // If we weren't to do this, then the signal would get dropped here
+    // ///     }
+    // /// }
+    // /// ```
+    // #[ensures(self.signal.is_none())]
+    // pub fn keep(&mut self) {
+    //     if self.signal.is_none() {
+    //         return;
+    //     }
 
-    /// Returns a pointer to self.pane[self.position].cell
-    fn current_ptr(&self) -> *const AnyTile {
-        let reference = unsafe {
-            self.pane.as_ref().get(self.position).unwrap()
-        };
-        &*reference.get().unwrap()
-    }
+    //     unsafe {
+    //         // SAFETY: we only access self.pane[self.position].signal, not self.pane[self.position].cell
+    //         self.pane
+    //             .as_mut()
+    //             .get_mut(self.position)
+    //             .unwrap_or_else(|| unreachable!())
+    //             .set_signal(std::mem::take(&mut self.signal));
+    //     }
+    // }
 }
 
 pub struct SendError(pub Signal);

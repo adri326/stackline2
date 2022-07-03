@@ -1,8 +1,9 @@
 use super::*;
+use veccell::{VecCell, VecRef, VecRefMut};
 
 #[derive(Debug)]
 pub struct Pane {
-    tiles: Vec<FullTile>,
+    tiles: VecCell<FullTile>,
     width: NonZeroUsize,
     height: NonZeroUsize,
 
@@ -37,11 +38,16 @@ impl Pane {
     pub fn empty(width: usize, height: usize) -> Option<Self> {
         // TODO: check that width * height is a valid usize
         let length = width.checked_mul(height)?;
+        let mut tiles = VecCell::with_capacity(length);
+
+        for _ in 0..length {
+            tiles.push(FullTile::default());
+        }
 
         Some(Self {
             width: width.try_into().ok()?,
             height: height.try_into().ok()?,
-            tiles: vec![FullTile::default(); length],
+            tiles,
 
             signals: Vec::new(),
         })
@@ -138,7 +144,7 @@ impl Pane {
     /// ```
     #[inline]
     #[ensures(self.in_bounds(position) -> ret.is_some())]
-    pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<&'b FullTile> {
+    pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<VecRef<'b, FullTile>> {
         if !self.in_bounds(position) {
             return None;
         }
@@ -170,6 +176,15 @@ impl Pane {
 
         self.tiles
             .get_mut(position.1 * self.width.get() + position.0)
+    }
+
+    pub(crate) fn borrow_mut<'b>(&'b self, position: (usize, usize)) -> Option<VecRefMut<'b, FullTile>> {
+        if !self.in_bounds(position) {
+            return None;
+        }
+
+        self.tiles
+            .borrow_mut(position.1 * self.width.get() + position.0)
     }
 
     /// Sets the tile at `position` to `tile`. `T` must either implement [`Tile`] or be `()`.
@@ -240,7 +255,7 @@ impl Pane {
     /// assert!(pane.get((0, 0)).unwrap().signal().is_some());
     /// ```
     #[inline]
-    #[ensures(ret.is_some() -> self.in_bounds(position) && self.get(position).unwrap().get().is_some())]
+    #[ensures(ret.is_some() -> self.in_bounds(position) && (*self.get(position).unwrap()).get().is_some())]
     #[ensures(!self.in_bounds(position) -> ret.is_none())]
     pub fn set_signal(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
         signal.set_position(position);
@@ -277,9 +292,9 @@ impl Pane {
     #[ensures(!self.in_bounds(position) -> ret.is_none())]
     fn update(&mut self, position: (usize, usize), commit: &mut UpdateCommit) -> Option<()> {
         // NOTE: Tiles will only be updated once as per UpdateContext::new
-        let (ctx, tile) = UpdateContext::new(self, position, commit)?;
+        let (ctx, mut tile) = UpdateContext::new(self, position, commit)?;
 
-        tile.update(ctx);
+        (*tile).get_mut()?.update(ctx);
 
         Some(())
     }
@@ -353,7 +368,7 @@ impl Pane {
 
     /// Returns an iterator over the tiles and their coordinates
     #[inline]
-    pub fn tiles<'b>(&'b self) -> impl Iterator<Item = (usize, usize, &FullTile)> + 'b {
+    pub fn tiles<'b>(&'b self) -> impl Iterator<Item = (usize, usize, VecRef<'b, FullTile>)> + 'b {
         self.tiles
             .iter()
             .enumerate()
