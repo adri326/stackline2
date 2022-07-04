@@ -1,7 +1,7 @@
 //! Wires and diodes
 
 use crate::prelude::*;
-use crate::tile::prelude::*;
+// use crate::tile::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct Wire(Orientation);

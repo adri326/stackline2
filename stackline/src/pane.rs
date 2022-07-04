@@ -257,6 +257,7 @@ impl Pane {
     #[inline]
     #[ensures(ret.is_some() -> self.in_bounds(position) && (*self.get(position).unwrap()).get().is_some())]
     #[ensures(!self.in_bounds(position) -> ret.is_none())]
+    #[allow(unused_mut)]
     pub fn set_signal(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
         signal.set_position(position);
         if let Some(tile) = self.get_mut(position) {
@@ -295,6 +296,8 @@ impl Pane {
         let (ctx, mut tile) = UpdateContext::new(self, position, commit)?;
 
         (*tile).get_mut()?.update(ctx);
+
+        commit.apply_immediate(&mut *tile);
 
         Some(())
     }
