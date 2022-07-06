@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! test_tile_setup {
-    ( $width:expr, $height:expr, [ $( $x:expr ),* ] ) => {{
+    ( $width:expr, $height:expr, [ $( $x:expr ),* $(,)? ] ) => {{
         assert!($width > 0);
         assert!($height > 0);
         let mut pane = crate::pane::Pane::empty($width, $height).unwrap();

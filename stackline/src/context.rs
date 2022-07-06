@@ -361,6 +361,12 @@ impl<'a> UpdateContext<'a> {
         }
     }
 
+    /// Sends a signal to another [`Pane`] in the world.
+    /// If the tile at `coordinates = (pane, x, y)` does not exist, then the signal will be lost.
+    pub fn send_outbound(&mut self, coordinates: (String, usize, usize), signal: Signal) {
+        self.commit.send_outbound(coordinates, signal);
+    }
+
     /// Stores the current signal back in the current tile, guaranteeing that it will stay there for
     /// this update cycle. See [`take_signal`](UpdateContext::take_signal) for more information.
     ///
@@ -398,6 +404,11 @@ impl<'a> UpdateContext<'a> {
             _ => {}
         }
     }
+
+    /// Executes an arbitrary function after all the updates.
+    pub fn callback<F: for<'c> FnOnce(&'c mut Pane) + 'static>(&mut self, callback: F) {
+        self.commit.set_callback(Box::new(callback));
+    }
 }
 
 pub struct SendError(pub Signal);
@@ -416,12 +427,16 @@ impl std::fmt::Display for SendError {
     }
 }
 
+pub type UpdateCommitCallback = Box<dyn for<'c> FnOnce(&'c mut Pane) + 'static>;
+
 /// Temporarily holds a list of actions to be made on a given Pane, which should be [applied](UpdateCommit::apply)
 /// after every tile was updated.
 pub(crate) struct UpdateCommit {
     states: Vec<(usize, usize, State)>,
     signals: Vec<(usize, usize, Option<Signal>)>,
     updates: Vec<(usize, usize)>,
+    callbacks: Vec<UpdateCommitCallback>,
+    outbound_signals: Vec<((String, usize, usize), Signal)>,
 
     self_signal: Option<Signal>,
 }
@@ -432,6 +447,8 @@ impl UpdateCommit {
             states: Vec::new(),
             signals: Vec::new(),
             updates: Vec::new(),
+            callbacks: Vec::new(),
+            outbound_signals: Vec::new(),
 
             self_signal: None,
         }
@@ -449,7 +466,15 @@ impl UpdateCommit {
         self.self_signal = signal;
     }
 
-    pub(crate) fn apply(self, pane: &mut Pane) {
+    fn set_callback(&mut self, callback: UpdateCommitCallback) {
+        self.callbacks.push(callback);
+    }
+
+    fn send_outbound(&mut self, coordinates: (String, usize, usize), signal: Signal) {
+        self.outbound_signals.push((coordinates, signal));
+    }
+
+    pub(crate) fn apply(self, pane: &mut Pane) -> PaneResult {
         for (x, y) in self.updates {
             if let Some(tile) = pane.get_mut((x, y)) {
                 tile.updated = false;
@@ -475,6 +500,14 @@ impl UpdateCommit {
             if push_signal {
                 pane.signals.push((x, y));
             }
+        }
+
+        for callback in self.callbacks {
+            (callback)(pane);
+        }
+
+        PaneResult {
+            outbound_signals: self.outbound_signals,
         }
     }
 

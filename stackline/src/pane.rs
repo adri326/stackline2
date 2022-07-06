@@ -351,7 +351,7 @@ impl Pane {
     /// // The signal is now at (1, 1)
     /// assert!(pane.get((1, 1)).unwrap().signal().is_some());
     /// ```
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> PaneResult {
         let mut commit = UpdateCommit::new();
 
         for position in std::mem::replace(&mut self.signals, Vec::new()) {
@@ -366,7 +366,7 @@ impl Pane {
             }
         }
 
-        commit.apply(self);
+        commit.apply(self)
     }
 
     /// Returns an iterator over the tiles and their coordinates
@@ -388,6 +388,12 @@ impl Pane {
             }
         }
     }
+}
+
+/// Stores the results of a [`Pane`]'s update step.
+pub struct PaneResult {
+    /// Signals to be sent to other panes.
+    pub outbound_signals: Vec<((String, usize, usize), Signal)>,
 }
 
 #[cfg(test)]

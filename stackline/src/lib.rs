@@ -18,6 +18,10 @@ use signal::*;
 pub mod pane;
 use pane::*;
 
+pub mod world;
+#[allow(unused_imports)]
+use world::*;
+
 pub mod utils;
 use utils::*;
 
@@ -30,13 +34,9 @@ use context::*;
 pub mod text;
 use text::*;
 
-pub struct World {
-    panes: Vec<Pane>,
-}
-
 pub mod prelude {
     pub use crate::pane::Pane;
-    pub use crate::World;
+    pub use crate::world::World;
 
     pub use crate::text::{TextChar, TextSurface};
 
