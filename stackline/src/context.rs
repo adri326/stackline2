@@ -1,8 +1,6 @@
 use super::*;
 use veccell::{VecRef, VecRefMut};
 
-// TODO: write VecCell, to make miri happy
-
 /** Provides an interface between a [`Tile`] and its parent [`Pane`] during [`Tile::update`].
     All actions performed through `UpdateContext` will be executed *after* all the tiles have updated.
 

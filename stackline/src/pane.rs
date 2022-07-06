@@ -149,7 +149,7 @@ impl Pane {
             return None;
         }
 
-        self.tiles.get(position.1 * self.width.get() + position.0)
+        self.tiles.borrow(position.1 * self.width.get() + position.0)
     }
 
     /// Returns a mutable reference to the [`Tile`] at `position`.
