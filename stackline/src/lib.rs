@@ -7,6 +7,8 @@ This library is the rust implementation of the core logic of the language.
 
 */
 
+#![feature(drain_filter)]
+
 #[macro_use]
 extern crate contracts;
 

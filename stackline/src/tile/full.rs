@@ -117,3 +117,6 @@ impl From<()> for FullTile {
         Self::new(None)
     }
 }
+
+// TODO: enum for <AnyTile as TryInto<T: Tile>>
+// TODO: local trait for conversion to inner tiles

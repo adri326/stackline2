@@ -91,10 +91,30 @@ fn main() {
     res += "#[enum_dispatch]\n";
     res += "pub enum AnyTile {\n";
 
-    for name in names {
+    for name in names.iter() {
         res += &format!("    {0}({0}),\n", name);
     }
     res += "}\n";
+
+    // impl<T: Tile> TryInto<&T> for &AnyTile
+    res += "\n";
+
+    for name in names {
+        res += &format!(
+            concat!(
+                "impl<'a> TryInto<&'a {0}> for &'a AnyTile {{\n",
+                "    type Error = ();\n",
+                "    fn try_into(self) -> Result<&'a {0}, Self::Error> {{\n",
+                "        match self {{\n",
+                "            AnyTile::{0}(tile) => Ok(tile),\n",
+                "            _ => Err(()),\n",
+                "        }}\n",
+                "    }}\n",
+                "}}\n",
+            ),
+            name
+        );
+    }
 
     fs::write(dest_path.clone(), &res).expect(&format!("Couldn't write to {:?}", dest_path));
 }

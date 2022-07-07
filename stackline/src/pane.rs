@@ -7,6 +7,8 @@ pub struct Pane {
     width: NonZeroUsize,
     height: NonZeroUsize,
 
+    position: (i32, i32),
+
     pub(crate) signals: Vec<(usize, usize)>,
 }
 
@@ -49,6 +51,8 @@ impl Pane {
             height: height.try_into().ok()?,
             tiles,
 
+            position: (0, 0),
+
             signals: Vec::new(),
         })
     }
@@ -81,6 +85,19 @@ impl Pane {
     #[inline]
     pub fn height(&self) -> NonZeroUsize {
         self.height
+    }
+
+    /// Returns the position of the `Pane` in its [`World`].
+    /// This property is used for drawing the `Pane` and calculating the distances between cross-pane tiles.
+    #[inline]
+    pub fn position(&self) -> (i32, i32) {
+        self.position
+    }
+
+    /// Sets the position of the `Pane` in its [`World`].
+    #[inline]
+    pub fn set_position(&mut self, position: (i32, i32)) {
+        self.position = position;
     }
 
     /// Given a `position = (x, y)` and an `offset = (Δx, Δy)`,
@@ -378,10 +395,12 @@ impl Pane {
             .filter_map(move |(i, v)| Some((i % self.width, i / self.width, v)))
     }
 
+    /// Draws the Pane at `(dx + self.position.0, dy + self.position.1)` on a [`TextSurface`].
+    /// Empty tiles will leave the `TextSurface` untouched, but tiles are free to modify the characters around them.
     pub fn draw(&self, dx: isize, dy: isize, surface: &mut TextSurface) {
         for (x, y, tile) in self.tiles() {
-            let x = x as isize + dx;
-            let y = y as isize + dy;
+            let x = x as isize + dx + self.position.0 as isize;
+            let y = y as isize + dy + self.position.1 as isize;
 
             if x >= 0 && y >= 0 {
                 tile.draw(x as usize, y as usize, surface);
@@ -463,6 +482,40 @@ mod test {
         for y in 0..3 {
             for x in 0..3 {
                 if (x, y) != (2, 2) {
+                    assert_eq!(surface.get(x, y), Some(TextChar::default()));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_pane_draw_offset() {
+        use crate::tile::Wire;
+        use Orientation::*;
+
+        let mut pane = test_tile_setup!(
+            2,
+            2,
+            [
+                Wire::new(Horizontal),
+                Wire::new(Vertical),
+                Wire::new(Any),
+                ()
+            ]
+        );
+
+        pane.set_position((2, 1));
+
+        let mut surface = TextSurface::new(9, 9);
+
+        pane.draw(5, 3, &mut surface);
+
+        assert_eq!(surface.get(5 + 2, 3 + 1).unwrap().ch, '-');
+        assert_eq!(surface.get(5 + 3, 3 + 1).unwrap().ch, '|');
+        assert_eq!(surface.get(5 + 2, 3 + 2).unwrap().ch, '+');
+        for y in 0..9 {
+            for x in 0..9 {
+                if (x, y) != (5 + 2, 3 + 1) && (x, y) != (5 + 3, 3 + 1) && (x, y) != (5 + 2, 3 + 2) {
                     assert_eq!(surface.get(x, y), Some(TextChar::default()));
                 }
             }
