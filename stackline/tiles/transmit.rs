@@ -115,7 +115,9 @@ impl Sender {
 
                 for (prev, current) in best_path.iter().zip(best_path.iter().skip(1)).skip(1) {
                     // If self.path.last(), prev, current aren't aligned, push prev to self.path
-                    if self.path[self.path.len() - 1].0 != prev.0 && prev.0 == current.0 {
+                    let prev_x_aligned = self.path[self.path.len() - 1].0 == prev.0;
+                    let curr_x_aligned = prev.0 == current.0;
+                    if prev_x_aligned != curr_x_aligned {
                         self.path.push(prev.into());
                     }
                 }
@@ -423,5 +425,49 @@ mod test {
 
         assert!(tile.path == [(0, 0), (2, 0), (2, 2)] || tile.path == [(0, 0), (0, 2), (2, 2)]);
         assert_eq!(tile.length, 4);
+    }
+
+    #[test]
+    fn test_sender_pathfinding_penalty() {
+        use crate::Wire;
+
+        let mut main_pane = test_tile_setup!(2, 4, [
+            Sender::new(String::from("second"), 0, 0),
+            (),
+            (),
+            (),
+            (),
+            (),
+            (),
+            (),
+        ]);
+        main_pane.set_position((0, 0));
+
+        let mut obstacle_pane = test_tile_setup!(4, 1, [(), (), (), ()]);
+        obstacle_pane.set_position((2, 1));
+
+        let mut second_pane = test_tile_setup!(1, 1, [Wire::new(Orientation::Any)]);
+        second_pane.set_position((2, 2));
+
+        let mut world = World::new();
+        world.set_pane(String::from("main"), main_pane);
+        world.set_pane(String::from("obstacle"), obstacle_pane);
+        world.set_pane(String::from("second"), second_pane);
+
+        let mut tile = world
+            .get_pane("main")
+            .unwrap()
+            .borrow_mut_as::<Sender>((0, 0))
+            .unwrap();
+
+        tile.calculate_path((0, 0), &world);
+
+        assert_eq!(tile.path, [
+            (0, 0),
+            (-1, 0),
+            (-1, 4),
+            (2, 4),
+            (2, 2)
+        ]);
     }
 }
