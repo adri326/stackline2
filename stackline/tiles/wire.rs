@@ -3,7 +3,7 @@
 use crate::prelude::*;
 // use crate::tile::prelude::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Wire(Orientation);
 
 impl Wire {

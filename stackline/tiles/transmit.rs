@@ -353,11 +353,11 @@ mod test {
         for n in 0..2 {
             world.step();
 
-            // TODO: pane.get_as::<Sender>(coords)
-            let sender: VecRef<'_, Sender> = VecRef::map(
-                world.get_pane("main").unwrap().get((0, 0)).unwrap(),
-                |tile| tile.get().unwrap().try_into().unwrap(),
-            );
+            let sender: VecRef<'_, Sender> = world
+                .get_pane("main")
+                .unwrap()
+                .get_as::<Sender>((0, 0))
+                .unwrap();
 
             assert!(sender.signals.len() == 1);
             assert!(sender.signals[0].1 == n);
@@ -370,10 +370,11 @@ mod test {
 
         world.step();
 
-        let sender: VecRef<'_, Sender> = VecRef::map(
-            world.get_pane("main").unwrap().get((0, 0)).unwrap(),
-            |tile| tile.get().unwrap().try_into().unwrap(),
-        );
+        let sender: VecRef<'_, Sender> = world
+            .get_pane("main")
+            .unwrap()
+            .get_as::<Sender>((0, 0))
+            .unwrap();
 
         assert!(sender.signals.len() == 0);
 
@@ -397,11 +398,11 @@ mod test {
         world.set_pane(String::from("main"), main_pane);
         world.set_pane(String::from("second"), second_pane);
 
-        // TODO: borrow_mut_as::<Sender>(coords)
-        let mut tile: VecRefMut<Sender> = VecRefMut::map(
-            world.get_pane("main").unwrap().borrow_mut((0, 0)).unwrap(),
-            |tile| tile.get_mut().unwrap().try_into().unwrap(),
-        );
+        let mut tile = world
+            .get_pane("main")
+            .unwrap()
+            .borrow_mut_as::<Sender>((0, 0))
+            .unwrap();
 
         tile.calculate_path((0, 0), &world);
 
@@ -412,10 +413,11 @@ mod test {
 
         world.get_pane_mut("second").unwrap().set_position((2, 2));
 
-        let mut tile: VecRefMut<Sender> = VecRefMut::map(
-            world.get_pane("main").unwrap().borrow_mut((0, 0)).unwrap(),
-            |tile| tile.get_mut().unwrap().try_into().unwrap(),
-        );
+        let mut tile = world
+            .get_pane("main")
+            .unwrap()
+            .borrow_mut_as::<Sender>((0, 0))
+            .unwrap();
 
         tile.calculate_path((0, 0), &world);
 

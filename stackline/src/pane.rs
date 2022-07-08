@@ -144,7 +144,7 @@ impl Pane {
     }
 
     // TODO: Have a Result instead of an Option
-    /// Returns an immutable referenec to the [`Tile`] at `position`.
+    /// Returns an immutable reference to the [`FullTile`] at `position`.
     /// If `position` is out of bounds, returns `None`.
     ///
     /// # Example
@@ -166,7 +166,42 @@ impl Pane {
             return None;
         }
 
-        self.tiles.borrow(position.1 * self.width.get() + position.0)
+        self.tiles
+            .borrow(position.1 * self.width.get() + position.0)
+    }
+
+    /// Returns an immutable reference to the [`Tile`] at `position`.
+    /// If `position` is out of bounds, returns `None`.
+    /// If the tile at position isn't an instance of `T`, returns `None`.
+    ///
+    /// `T` may be any [`Tile`] that is a member of [`AnyTile`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use stackline::prelude::*;
+    /// use stackline::tile::{FullTile, Wire};
+    ///
+    /// let mut pane = Pane::empty(4, 4).unwrap();
+    ///
+    /// pane.set_tile((0, 0), Wire::new(Orientation::Horizontal));
+    ///
+    /// let wire = pane.get_as::<Wire>((0, 0)).unwrap();
+    /// assert_eq!(wire, Wire::new(Orientation::Horizontal));
+    /// ```
+    // TODO: error types
+    #[inline]
+    pub fn get_as<'b, T: Tile>(&'b self, position: (usize, usize)) -> Option<VecRef<'b, T>>
+    where
+        for<'c> &'c AnyTile: TryInto<&'c T>,
+    {
+        let tile = self.get(position)?;
+        VecRef::try_map(tile, |tile| {
+            tile.get()
+                .ok_or(())
+                .and_then(|anytile: &AnyTile| anytile.try_into().map_err(|_| ()))
+        })
+        .ok()
     }
 
     /// Returns a mutable reference to the [`Tile`] at `position`.
@@ -195,13 +230,89 @@ impl Pane {
             .get_mut(position.1 * self.width.get() + position.0)
     }
 
-    pub(crate) fn borrow_mut<'b>(&'b self, position: (usize, usize)) -> Option<VecRefMut<'b, FullTile>> {
+    /// Returns a mutable reference to the [`Tile`] at `position`.
+    /// If `position` is out of bounds, returns `None`.
+    /// If the tile at position isn't an instance of `T`, returns `None`.
+    ///
+    /// `T` may be any [`Tile`] that is a member of [`AnyTile`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use stackline::prelude::*;
+    /// use stackline::tile::{FullTile, Wire};
+    ///
+    /// let mut pane = Pane::empty(4, 4).unwrap();
+    ///
+    /// pane.set_tile((0, 0), Wire::new(Orientation::Horizontal));
+    ///
+    /// let mut wire = pane.get_mut_as::<Wire>((0, 0)).unwrap();
+    /// assert_eq!(*wire, Wire::new(Orientation::Horizontal));
+    /// *wire = Wire::new(Orientation::Vertical);
+    /// ```
+    #[inline]
+    pub fn get_mut_as<'b, T: Tile>(&'b mut self, position: (usize, usize)) -> Option<&'b mut T>
+    where
+        for<'c> &'c mut AnyTile: TryInto<&'c mut T>,
+    {
+        let tile = self.get_mut(position)?.get_mut()?;
+        tile.try_into().ok()
+    }
+
+    /// Returns a mutable borrow to the [`Tile`] at `position`.
+    ///
+    /// This function does not need a mutable reference to `self`, and makes use
+    /// of [`VecCell`]'s ability to provide interior mutability for one item at a time.
+    #[inline]
+    pub(crate) fn borrow_mut<'b>(
+        &'b self,
+        position: (usize, usize),
+    ) -> Option<VecRefMut<'b, FullTile>> {
         if !self.in_bounds(position) {
             return None;
         }
 
         self.tiles
             .borrow_mut(position.1 * self.width.get() + position.0)
+    }
+
+    /// Returns a mutable borrow to the [`Tile`] at `position`.
+    /// If `position` is out of bounds, returns `None`.
+    /// If the tile at position isn't an instance of `T`, returns `None`.
+    ///
+    /// `T` may be any [`Tile`] that is a member of [`AnyTile`].
+    ///
+    /// This function does not need a mutable reference to `self`, and makes use
+    /// of [`VecCell`]'s ability to provide interior mutability for one item at a time.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use stackline::prelude::*;
+    /// use stackline::tile::{FullTile, Wire};
+    ///
+    /// let mut pane = Pane::empty(4, 4).unwrap();
+    ///
+    /// pane.set_tile((0, 0), Wire::new(Orientation::Horizontal));
+    ///
+    /// let pane = pane;
+    ///
+    /// let mut wire = pane.borrow_mut_as::<Wire>((0, 0)).unwrap();
+    /// assert_eq!(wire, Wire::new(Orientation::Horizontal));
+    /// *wire = Wire::new(Orientation::Vertical);
+    /// ```
+    #[inline]
+    pub fn borrow_mut_as<'b, T: Tile>(&'b self, position: (usize, usize)) -> Option<VecRefMut<'b, T>>
+    where
+        for<'c> &'c mut AnyTile: TryInto<&'c mut T>,
+    {
+        let tile = self.borrow_mut(position)?;
+        VecRefMut::try_map(tile, |tile| {
+            tile.get_mut()
+                .ok_or(())
+                .and_then(|anytile: &mut AnyTile| anytile.try_into().map_err(|_| ()))
+        })
+        .ok()
     }
 
     /// Sets the tile at `position` to `tile`. `T` must either implement [`Tile`] or be `()`.
@@ -515,7 +626,8 @@ mod test {
         assert_eq!(surface.get(5 + 2, 3 + 2).unwrap().ch, '+');
         for y in 0..9 {
             for x in 0..9 {
-                if (x, y) != (5 + 2, 3 + 1) && (x, y) != (5 + 3, 3 + 1) && (x, y) != (5 + 2, 3 + 2) {
+                if (x, y) != (5 + 2, 3 + 1) && (x, y) != (5 + 3, 3 + 1) && (x, y) != (5 + 2, 3 + 2)
+                {
                     assert_eq!(surface.get(x, y), Some(TextChar::default()));
                 }
             }
