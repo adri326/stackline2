@@ -1,6 +1,7 @@
 //! Transmission tiles: allow for inter-Pane communication
 
 use crate::prelude::*;
+// use crate::tile::prelude::*;
 
 /// Instantly sends any incomming signals to `coordinates`
 #[derive(Clone, Debug)]
@@ -52,9 +53,81 @@ impl Sender {
     }
 
     // TODO: implement WorldMask, calculate_path and a method of Tile to call this method automatically
-    // pub fn calculate_path(&mut self, mask: &WorldMask) {
-    //
-    // }
+    pub fn calculate_path(&mut self, origin: (i32, i32), world: &World) {
+        use pathfinding::directed::astar::astar;
+
+        // A* search
+        #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+        struct Pos(i32, i32);
+
+        impl Pos {
+            fn neighbors(&self, world: &World) -> [(Pos, i32); 4] {
+                let x = self.0;
+                let y = self.1;
+
+                [
+                    Pos(x + 1, y).with_weight(world),
+                    Pos(x - 1, y).with_weight(world),
+                    Pos(x, y + 1).with_weight(world),
+                    Pos(x, y - 1).with_weight(world),
+                ]
+            }
+
+            fn with_weight(self, world: &World) -> (Self, i32) {
+                if world.in_pane(self.0, self.1) {
+                    (self, 100)
+                } else {
+                    (self, 1)
+                }
+            }
+
+            fn heuristic(&self, target: Pos) -> i32 {
+                (self.0 - target.0).abs() + (self.1 - target.1).abs()
+            }
+        }
+
+        impl From<Pos> for (i32, i32) {
+            fn from(pos: Pos) -> (i32, i32) {
+                (pos.0, pos.1)
+            }
+        }
+
+        impl From<&Pos> for (i32, i32) {
+            fn from(pos: &Pos) -> (i32, i32) {
+                (pos.0, pos.1)
+            }
+        }
+
+        if let Some(pane) = world.get_pane(&self.coordinates.0) {
+            let target = Pos(
+                pane.position().0 + self.coordinates.1 as i32,
+                pane.position().1 + self.coordinates.2 as i32,
+            );
+
+            if let Some((best_path, _)) = astar(
+                &Pos(origin.0, origin.1),
+                |node| node.neighbors(world),
+                |node| node.heuristic(target),
+                |&node| node == target,
+            ) {
+                self.path = Vec::new();
+                self.path.push((best_path[0].0, best_path[0].1));
+
+                for (prev, current) in best_path.iter().zip(best_path.iter().skip(1)).skip(1) {
+                    // If self.path.last(), prev, current aren't aligned, push prev to self.path
+                    if self.path[self.path.len() - 1].0 != prev.0 && prev.0 == current.0 {
+                        self.path.push(prev.into());
+                    }
+                }
+
+                if self.path[self.path.len() - 1] != best_path[best_path.len() - 1].into() {
+                    self.path.push(best_path[best_path.len() - 1].into());
+                }
+
+                self.length = best_path.len() - 1;
+            }
+        }
+    }
 }
 
 impl Tile for Sender {
@@ -137,7 +210,7 @@ impl Tile for Sender {
 #[cfg(test)]
 mod test {
     use super::*;
-    use veccell::VecRef;
+    use veccell::{VecRef, VecRefMut};
 
     #[test]
     fn test_teleporter_transmit_same_pane() {
@@ -306,5 +379,47 @@ mod test {
 
         assert_no_signal!(world.get_pane("main").unwrap(), (0, 0));
         assert_signal!(world.get_pane("main").unwrap(), (0, 2));
+    }
+
+    #[test]
+    fn test_sender_pathfinding() {
+        use crate::Wire;
+
+        let mut main_pane = test_tile_setup!(1, 1, [Sender::new(String::from("second"), 0, 0),]);
+
+        main_pane.set_position((0, 0));
+
+        let mut second_pane = test_tile_setup!(1, 1, [Wire::new(Orientation::Any)]);
+
+        second_pane.set_position((2, 0));
+
+        let mut world = World::new();
+        world.set_pane(String::from("main"), main_pane);
+        world.set_pane(String::from("second"), second_pane);
+
+        // TODO: borrow_mut_as::<Sender>(coords)
+        let mut tile: VecRefMut<Sender> = VecRefMut::map(
+            world.get_pane("main").unwrap().borrow_mut((0, 0)).unwrap(),
+            |tile| tile.get_mut().unwrap().try_into().unwrap(),
+        );
+
+        tile.calculate_path((0, 0), &world);
+
+        assert_eq!(tile.path, [(0, 0), (2, 0)]);
+        assert_eq!(tile.length, 2);
+
+        drop(tile);
+
+        world.get_pane_mut("second").unwrap().set_position((2, 2));
+
+        let mut tile: VecRefMut<Sender> = VecRefMut::map(
+            world.get_pane("main").unwrap().borrow_mut((0, 0)).unwrap(),
+            |tile| tile.get_mut().unwrap().try_into().unwrap(),
+        );
+
+        tile.calculate_path((0, 0), &world);
+
+        assert!(tile.path == [(0, 0), (2, 0), (2, 2)] || tile.path == [(0, 0), (0, 2), (2, 2)]);
+        assert_eq!(tile.length, 4);
     }
 }

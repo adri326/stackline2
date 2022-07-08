@@ -15,7 +15,7 @@ impl World {
     pub fn step(&mut self) {
         let mut outbound_signals = Vec::new();
 
-        for (_, pane) in self.panes.iter_mut() {
+        for pane in self.panes.values_mut() {
             let mut res = pane.step();
             outbound_signals.append(&mut res.outbound_signals);
         }
@@ -37,6 +37,21 @@ impl World {
 
     pub fn get_pane_mut<'b>(&'b mut self, name: &str) -> Option<&'b mut Pane> {
         self.panes.get_mut(name)
+    }
+
+    pub fn in_pane(&self, x: i32, y: i32) -> bool {
+        for pane in self.panes.values() {
+            if
+                x >= pane.position().0
+                && y >= pane.position().1
+                && x < pane.position().0 + pane.width().get() as i32
+                && y < pane.position().1 + pane.height().get() as i32
+            {
+                return true;
+            }
+        }
+
+        false
     }
 }
 

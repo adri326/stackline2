@@ -114,6 +114,21 @@ fn main() {
             ),
             name
         );
+
+        res += &format!(
+            concat!(
+                "impl<'a> TryInto<&'a mut {0}> for &'a mut AnyTile {{\n",
+                "    type Error = ();\n",
+                "    fn try_into(self) -> Result<&'a mut {0}, Self::Error> {{\n",
+                "        match self {{\n",
+                "            AnyTile::{0}(tile) => Ok(tile),\n",
+                "            _ => Err(()),\n",
+                "        }}\n",
+                "    }}\n",
+                "}}\n",
+            ),
+            name
+        );
     }
 
     fs::write(dest_path.clone(), &res).expect(&format!("Couldn't write to {:?}", dest_path));
