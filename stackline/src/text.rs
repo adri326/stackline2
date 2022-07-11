@@ -128,7 +128,6 @@ impl TextSurface {
     // TODO: resize
 }
 
-#[cfg(test)]
 impl std::fmt::Display for TextSurface {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use colored::Colorize;

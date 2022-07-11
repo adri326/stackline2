@@ -53,6 +53,39 @@ impl World {
 
         false
     }
+
+    pub fn draw(&self, dx: i32, dy: i32, surface: &mut TextSurface) {
+        for pane in self.panes.values() {
+            pane.draw(dx, dy, surface);
+        }
+    }
+
+    pub fn get_bounds(&self) -> (i32, i32, i32, i32) {
+        self.panes.values().fold((0, 0, 0, 0), |acc, act| {
+            (
+                acc.0.min(act.position().0),
+                acc.1.max(act.position().0),
+                acc.2.min(act.position().1),
+                acc.3.max(act.position().1),
+            )
+        })
+    }
+}
+
+impl std::fmt::Display for World {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let bounds = self.get_bounds();
+        let width = (bounds.1 - bounds.0) as usize;
+        let height = (bounds.3 - bounds.2) as usize;
+
+        let mut surface = TextSurface::new(width, height);
+
+        for pane in self.panes.values() {
+            pane.draw(bounds.0, bounds.2, &mut surface);
+        }
+
+        <TextSurface as std::fmt::Display>::fmt(&surface, f)
+    }
 }
 
 #[cfg(test)]

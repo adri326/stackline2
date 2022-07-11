@@ -508,10 +508,10 @@ impl Pane {
 
     /// Draws the Pane at `(dx + self.position.0, dy + self.position.1)` on a [`TextSurface`].
     /// Empty tiles will leave the `TextSurface` untouched, but tiles are free to modify the characters around them.
-    pub fn draw(&self, dx: isize, dy: isize, surface: &mut TextSurface) {
+    pub fn draw(&self, dx: i32, dy: i32, surface: &mut TextSurface) {
         for (x, y, tile) in self.tiles() {
-            let x = x as isize + dx + self.position.0 as isize;
-            let y = y as isize + dy + self.position.1 as isize;
+            let x = x as i32 + dx + self.position.0 as i32;
+            let y = y as i32 + dy + self.position.1 as i32;
 
             if x >= 0 && y >= 0 {
                 tile.draw(x as usize, y as usize, surface);
