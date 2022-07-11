@@ -5,6 +5,7 @@
  * See [its documentation](AnyTile) for more information on the discovery process.
 */
 use super::*;
+use enum_dispatch::enum_dispatch;
 use serde::{Serialize, Deserialize};
 
 mod full;
