@@ -1,6 +1,7 @@
 use super::*;
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Value {
     Number(f64),
     String(String),
@@ -55,7 +56,7 @@ impl<'a> From<&'a str> for Value {
 /// - By cloning it, through [`clone_move`](Signal::clone_move) (recommended) or [`clone`](Signal::clone)
 /// - By creating an empty signal, with [`empty`](Signal::empty)
 /// - Through the [`stackline::signal!`](crate::signal!) macro
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Signal {
     direction: Direction,
     position: (usize, usize),
@@ -88,8 +89,8 @@ impl Signal {
     /// ## Example
     ///
     /// ```
-    /// # use stackline::prelude::*;
-    /// # #[derive(Clone, Debug)]
+    /// # use stackline::tile::prelude::*;
+    /// # #[derive(Clone, Debug, Serialize, Deserialize)]
     /// # struct MyTile;
     /// # impl Tile for MyTile {
     /// fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {

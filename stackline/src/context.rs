@@ -26,9 +26,8 @@ use veccell::{VecRef, VecRefMut};
     Here is how you would implement a simple "counter" tile:
 
     ```
-    # use stackline::{*, tile::*, context::*};
-    #
-    #[derive(Clone, Debug)]
+    # use stackline::tile::prelude::*;
+    #[derive(Clone, Debug, Serialize, Deserialize)]
     pub struct CounterTile(usize);
 
     impl CounterTile {
@@ -113,8 +112,8 @@ impl<'a> UpdateContext<'a> {
     /// # Example
     ///
     /// ```
-    /// # use stackline::prelude::*;
-    /// # #[derive(Clone, Debug)]
+    /// # use stackline::tile::prelude::*;
+    /// # #[derive(Clone, Debug, Serialize, Deserialize)]
     /// # pub struct MyTile;
     /// # impl Tile for MyTile {
     /// fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
@@ -166,8 +165,8 @@ impl<'a> UpdateContext<'a> {
     /// # Example
     ///
     /// ```
-    /// # use stackline::prelude::*;
-    /// #[derive(Clone, Debug)]
+    /// # use stackline::tile::prelude::*;
+    /// #[derive(Clone, Debug, Serialize, Deserialize)]
     /// pub struct PrintTile;
     ///
     /// impl Tile for PrintTile {
@@ -278,8 +277,8 @@ impl<'a> UpdateContext<'a> {
     /// # Example
     ///
     /// ```
-    /// # use stackline::prelude::*;
-    /// # #[derive(Clone, Debug)]
+    /// # use stackline::tile::prelude::*;
+    /// # #[derive(Clone, Debug, Serialize, Deserialize)]
     /// # pub struct MyTile;
     /// # impl Tile for MyTile {
     /// fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
@@ -382,8 +381,8 @@ impl<'a> UpdateContext<'a> {
     /// # Example
     ///
     /// ```
-    /// # use stackline::prelude::*;
-    /// #[derive(Clone, Debug)]
+    /// # use stackline::tile::prelude::*;
+    /// #[derive(Clone, Debug, Serialize, Deserialize)]
     /// pub struct StorageTile {};
     ///
     /// impl Tile for StorageTile {

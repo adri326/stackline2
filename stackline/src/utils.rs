@@ -1,6 +1,8 @@
+use serde::{Serialize, Deserialize};
+
 /// Represents one or many undirected orientation(s), since we are in a 2D grid,
 /// this may either be [Horizontal](Orientation::Horizontal), [Vertical](Orientation::Vertical) or both ([Any](Orientation::Any))
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Orientation {
     Horizontal,
@@ -9,7 +11,7 @@ pub enum Orientation {
 }
 
 /// Represents one directed orientation
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Direction {
     Up,
@@ -20,7 +22,7 @@ pub enum Direction {
 
 /// Represents the state that a cell may be in. The usual state transition schema is `Idle → Active → Dormant → Idle`.
 /// A tile will only be [`update`d](crate::Tile::update) if it is in the `Active` or `Dormant` state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum State {
     Idle,

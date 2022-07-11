@@ -1,4 +1,5 @@
 use super::*;
+use serde::{Serialize, Deserialize};
 
 /** Represents a tile that may be empty and may have a signal. The tile may only have a signal if it isn't empty.
 Cloning a `FullTile` results in a `FullTile` that does not have any signal.
@@ -9,7 +10,7 @@ Cloning a `FullTile` results in a `FullTile` that does not have any signal.
 - `self.accepts_signal() -> self.cell.is_some()`
 
 **/
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FullTile {
     cell: Option<AnyTile>,
     signal: Option<Signal>,

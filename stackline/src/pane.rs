@@ -1,7 +1,8 @@
 use super::*;
 use veccell::{VecCell, VecRef, VecRefMut};
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Pane {
     tiles: VecCell<FullTile>,
     width: NonZeroUsize,

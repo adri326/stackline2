@@ -5,6 +5,7 @@
  * See [its documentation](AnyTile) for more information on the discovery process.
 */
 use super::*;
+use serde::{Serialize, Deserialize};
 
 mod full;
 pub use full::*;
@@ -50,8 +51,8 @@ include!(concat!(env!("OUT_DIR"), "/anytile.rs"));
 /// # use stackline::prelude::*;
 /// # use stackline::tile::prelude::*;
 ///
-/// // Tiles must implement Clone and Debug
-/// #[derive(Clone, Debug)]
+/// // Tiles must implement Clone, Debug, Serialize and Deserialize
+/// #[derive(Clone, Debug, Serialize, Deserialize)]
 /// pub struct MyTile {
 ///     // This is where your tile can store its internal state.
 ///     // For this tile, we don't need any!
@@ -138,7 +139,7 @@ include!(concat!(env!("OUT_DIR"), "/anytile.rs"));
 /// }
 /// ```
 #[enum_dispatch(AnyTile)]
-pub trait Tile: std::clone::Clone + std::fmt::Debug {
+pub trait Tile: std::clone::Clone + std::fmt::Debug + Serialize + for<'d> Deserialize<'d> {
     /// Function to be called when the tile needs to be updated.
     #[inline]
     fn update<'b>(&'b mut self, mut context: UpdateContext<'b>) {
@@ -201,8 +202,11 @@ pub trait Tile: std::clone::Clone + std::fmt::Debug {
 // }
 
 pub mod prelude {
+    pub use crate::prelude::*;
     pub use crate::tile::{FullTile, AnyTile};
     pub use crate::signal::Signal;
     pub use crate::utils::State;
     pub use crate::text::*;
+
+    pub use serde::{Serialize, Deserialize};
 }

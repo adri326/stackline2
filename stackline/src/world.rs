@@ -1,6 +1,8 @@
 use super::*;
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct World {
     panes: HashMap<String, Pane>,
 }
@@ -64,9 +66,9 @@ impl World {
         self.panes.values().fold((0, 0, 0, 0), |acc, act| {
             (
                 acc.0.min(act.position().0),
-                acc.1.max(act.position().0),
+                acc.1.max(act.position().0 + act.width().get() as i32),
                 acc.2.min(act.position().1),
-                acc.3.max(act.position().1),
+                acc.3.max(act.position().1 + act.height().get() as i32),
             )
         })
     }

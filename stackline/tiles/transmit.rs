@@ -1,10 +1,10 @@
 //! Transmission tiles: allow for inter-Pane communication
 
 use crate::prelude::*;
-// use crate::tile::prelude::*;
+use crate::tile::prelude::*;
 
 /// Instantly sends any incomming signals to `coordinates`
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Teleporter {
     pub coordinates: (String, usize, usize),
 }
@@ -34,7 +34,7 @@ impl Tile for Teleporter {
 }
 
 /// Sends a signal through a virtual wire towards `coordinates`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Sender {
     pub coordinates: (String, usize, usize),
     pub path: Vec<(i32, i32)>, // x, y

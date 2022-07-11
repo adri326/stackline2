@@ -1,9 +1,8 @@
 //! Wires and diodes
 
-use crate::prelude::*;
-// use crate::tile::prelude::*;
+use crate::tile::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Wire(Orientation);
 
 impl Wire {
@@ -46,7 +45,7 @@ impl Tile for Wire {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Diode(Direction);
 
 impl Diode {
@@ -85,7 +84,7 @@ impl Tile for Diode {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Resistor {
     direction: Direction,
     signal: Option<Signal>,

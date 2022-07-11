@@ -87,7 +87,7 @@ fn main() {
     }
 
     res += &fs::read_to_string("src/tile/anytile.doc.rs").expect("Couldn't read src/tile/anytile.doc.rs");
-    res += "#[derive(Clone, Debug)]\n";
+    res += "#[derive(Clone, Debug, Serialize, Deserialize)]\n";
     res += "#[enum_dispatch]\n";
     res += "pub enum AnyTile {\n";
 

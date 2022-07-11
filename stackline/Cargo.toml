@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# dyn-clone = "1.0"
 palette = "0.6"
 enum_dispatch = "0.3"
 contracts = { version = "0.6.3", features = ["override_debug"] }
-veccell = "0.3.0"
+veccell = { version = "0.4.0", features = ["serde"] }
 pathfinding = "3.0"
 colored = "2.0"
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["html_reports"] }
