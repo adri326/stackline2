@@ -204,6 +204,8 @@ fn main() {
                 println!("- `get <x> <y>`: prints the JSON-serialized data of the tile at (x, y)");
                 println!("- `set <x> <y> <tilename>`: sets the tile at (x, y) to a default tilename");
                 println!("- `remove <x> <y>`: removes the tile at (x, y)");
+                println!("- `copy <x_from> <y_from> <x_to> <y_to>`: copies a tile");
+                println!("- `move <x_from> <y_from> <x_to> <y_to>`: moves a tile");
 
                 println!("- `prop <x> <y> <prop_name> [data]`: sets the property of the tile at (x, y)");
                 println!("  if the tile is a single tuple struct, then prop_name is ignored.");
@@ -216,6 +218,9 @@ fn main() {
                 println!("- `pop <x> <y>`: pops a value from the signal at (x, y)");
                 println!("- `clear <x> <y>`: clears the signal of the tile at (x, y)");
                 println!("- `dir <x> <y> <dir>`: sets the direction of the signal at (x, y)");
+
+                println!("- `pane <x> <y> <width> <height>`: creates a new pane at the given position/dimension");
+                println!("- `panes`: lists panes");
 
                 println!("- `run <steps>`: runs a number of steps");
                 println!("- `step`: runs a single step");
