@@ -2,7 +2,8 @@
 
 members = [
     "stackline-wasm",
-    "stackline"
+    "stackline-cli",
+    "stackline",
 ]
 
 [profile.release]

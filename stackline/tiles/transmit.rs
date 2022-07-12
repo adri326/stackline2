@@ -4,7 +4,7 @@ use crate::prelude::*;
 use crate::tile::prelude::*;
 
 /// Instantly sends any incomming signals to `coordinates`
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Teleporter {
     pub coordinates: (String, usize, usize),
 }
@@ -34,7 +34,7 @@ impl Tile for Teleporter {
 }
 
 /// Sends a signal through a virtual wire towards `coordinates`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Sender {
     pub coordinates: (String, usize, usize),
     pub path: Vec<(i32, i32)>, // x, y

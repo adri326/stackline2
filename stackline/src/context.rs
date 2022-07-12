@@ -27,7 +27,7 @@ use veccell::{VecRef, VecRefMut};
 
     ```
     # use stackline::tile::prelude::*;
-    #[derive(Clone, Debug, Serialize, Deserialize)]
+    #[derive(Clone, Debug, Serialize, Deserialize, Default)]
     pub struct CounterTile(usize);
 
     impl CounterTile {
@@ -113,7 +113,7 @@ impl<'a> UpdateContext<'a> {
     ///
     /// ```
     /// # use stackline::tile::prelude::*;
-    /// # #[derive(Clone, Debug, Serialize, Deserialize)]
+    /// # #[derive(Clone, Debug, Serialize, Deserialize, Default)]
     /// # pub struct MyTile;
     /// # impl Tile for MyTile {
     /// fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
@@ -166,7 +166,7 @@ impl<'a> UpdateContext<'a> {
     ///
     /// ```
     /// # use stackline::tile::prelude::*;
-    /// #[derive(Clone, Debug, Serialize, Deserialize)]
+    /// #[derive(Clone, Debug, Serialize, Deserialize, Default)]
     /// pub struct PrintTile;
     ///
     /// impl Tile for PrintTile {
@@ -278,7 +278,7 @@ impl<'a> UpdateContext<'a> {
     ///
     /// ```
     /// # use stackline::tile::prelude::*;
-    /// # #[derive(Clone, Debug, Serialize, Deserialize)]
+    /// # #[derive(Clone, Debug, Serialize, Deserialize, Default)]
     /// # pub struct MyTile;
     /// # impl Tile for MyTile {
     /// fn update<'b>(&'b mut self, mut ctx: UpdateContext<'b>) {
@@ -382,7 +382,7 @@ impl<'a> UpdateContext<'a> {
     ///
     /// ```
     /// # use stackline::tile::prelude::*;
-    /// #[derive(Clone, Debug, Serialize, Deserialize)]
+    /// #[derive(Clone, Debug, Serialize, Deserialize, Default)]
     /// pub struct StorageTile {};
     ///
     /// impl Tile for StorageTile {

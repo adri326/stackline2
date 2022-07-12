@@ -1,6 +1,7 @@
 use super::*;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
+use veccell::{VecRef, VecRefMut};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct World {
@@ -31,6 +32,66 @@ impl World {
 
     pub fn set_pane(&mut self, name: String, pane: Pane) {
         self.panes.insert(name, pane);
+    }
+
+    pub fn get<'b>(&'b self, (x, y): (i32, i32)) -> Option<VecRef<'b, FullTile>> {
+        for pane in self.panes.values() {
+            let x2 = x - pane.position().0;
+            let y2 = y - pane.position().1;
+            if x2 >= 0 && x2 < pane.width().get() as i32 && y2 >= 0 && y2 < pane.height().get() as i32 {
+                let x2 = x2 as usize;
+                let y2 = y2 as usize;
+                if let Some(tile) = pane.get((x2, y2)) {
+                    return Some(tile);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn get_with_pos<'b>(&'b self, (x, y): (i32, i32)) -> Option<(VecRef<'b, FullTile>, usize, usize)> {
+        for pane in self.panes.values() {
+            let x2 = x - pane.position().0;
+            let y2 = y - pane.position().1;
+            if x2 >= 0 && x2 < pane.width().get() as i32 && y2 >= 0 && y2 < pane.height().get() as i32 {
+                let x2 = x2 as usize;
+                let y2 = y2 as usize;
+                if let Some(tile) = pane.get((x2, y2)) {
+                    return Some((tile, x2, y2));
+                }
+            }
+        }
+        None
+    }
+
+    pub fn get_mut<'b>(&'b mut self, (x, y): (i32, i32)) -> Option<&'b mut FullTile> {
+        for pane in self.panes.values_mut() {
+            let x2 = x - pane.position().0;
+            let y2 = y - pane.position().1;
+            if x2 >= 0 && x2 < pane.width().get() as i32 && y2 >= 0 && y2 < pane.height().get() as i32 {
+                let x2 = x2 as usize;
+                let y2 = y2 as usize;
+                if let Some(tile) = pane.get_mut((x2, y2)) {
+                    return Some(tile);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn get_mut_with_pos<'b>(&'b mut self, (x, y): (i32, i32)) -> Option<(&'b mut FullTile, usize, usize)> {
+        for pane in self.panes.values_mut() {
+            let x2 = x - pane.position().0;
+            let y2 = y - pane.position().1;
+            if x2 >= 0 && x2 < pane.width().get() as i32 && y2 >= 0 && y2 < pane.height().get() as i32 {
+                let x2 = x2 as usize;
+                let y2 = y2 as usize;
+                if let Some(tile) = pane.get_mut((x2, y2)) {
+                    return Some((tile, x2, y2));
+                }
+            }
+        }
+        None
     }
 
     pub fn get_pane<'b>(&'b self, name: &str) -> Option<&'b Pane> {

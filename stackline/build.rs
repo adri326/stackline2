@@ -129,6 +129,17 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
 
     res += "\n";
 
+    res += "impl AnyTile {\n";
+    res += "    pub fn new(name: &str) -> Option<Self> {\n";
+    res += "        match name {\n";
+
+    for name in names.iter() {
+        res += &format!("            \"{0}\" => Some(Self::{0}(<{0} as Default>::default())),\n", name);
+    }
+
+    res += "            _ => None\n";
+    res += "        }\n    }\n}\n";
+
     for name in names {
         // impl<T: Tile> TryInto<&T> for &AnyTile
         res += &format!(

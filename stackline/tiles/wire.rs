@@ -2,7 +2,7 @@
 
 use crate::tile::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Wire(Orientation);
 
 impl Wire {
@@ -45,7 +45,7 @@ impl Tile for Wire {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Diode(Direction);
 
 impl Diode {
@@ -84,7 +84,7 @@ impl Tile for Diode {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Resistor {
     direction: Direction,
     signal: Option<Signal>,
@@ -119,10 +119,10 @@ impl Tile for Resistor {
 
     fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
         let ch = match self.direction {
-            Direction::Up => '\u{219f}',    // Upwards Two Headed Arrow
-            Direction::Down => '\u{21a1}',  // Downwards Two Headed Arrow
-            Direction::Left => '\u{219e}',  // Leftwards Two Headed Arrow
-            Direction::Right => '\u{21a0}', // Rightwards Two Headed Arrow
+            Direction::Up => '\u{2191}',    // Upwards Arrow
+            Direction::Down => '\u{2193}',  // Downwards Arrow
+            Direction::Left => '\u{2190}',  // Leftwards Arrow
+            Direction::Right => '\u{2192}', // Rightwards Arrow
         };
 
         surface.set(x, y, TextChar::from_state(ch, state));

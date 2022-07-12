@@ -37,7 +37,7 @@ impl FullTile {
     }
 
     /// Returns `Some` iff self.cell.is_some()
-    pub(crate) fn set_signal(&mut self, signal: Option<Signal>) -> Option<()> {
+    pub fn set_signal(&mut self, signal: Option<Signal>) -> Option<()> {
         if self.cell.is_some() {
             self.signal = signal;
             Some(())

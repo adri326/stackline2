@@ -1,0 +1,11 @@
+[package]
+name = "stackline-cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["Shad Amethyst"]
+description = "A simple runner and editor for Stackline 2"
+
+[dependencies]
+clap = { version = "3.2", features = ["derive"] }
+stackline = { path = "../stackline" }
+serde_json = "1.0"
