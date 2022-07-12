@@ -34,12 +34,16 @@ fn main() {
 
     loop {
         let mut line = String::new();
-        std::io::stdin().read_line(&mut line).unwrap();
+        if let Ok(0) = std::io::stdin().read_line(&mut line) {
+            break; // EOF
+        }
 
         line = line.trim().to_string();
         let mut tokens = line.split(' ');
         match tokens.next() {
             None => continue,
+            Some("exit") => break,
+
             Some("run") => {
                 if let Some(Ok(steps)) = tokens.next().map(|s| s.parse::<usize>()) {
                     run(&mut world, steps).unwrap();
@@ -200,6 +204,7 @@ fn main() {
             }
 
             Some("help") => {
+                println!("- `exit`: exits");
                 println!("- `print`: prints the current world");
                 println!("- `get <x> <y>`: prints the JSON-serialized data of the tile at (x, y)");
                 println!("- `set <x> <y> <tilename>`: sets the tile at (x, y) to a default tilename");
