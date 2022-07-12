@@ -24,6 +24,8 @@ fn main() {
 
     // Read and parse the contents of every .rs file in tiles/
 
+    println!("cargo:rerun-if-changed=tiles/");
+
     for src_path in list_files("tiles/") {
         if let Some("rs") = src_path.extension().and_then(|x| x.to_str()) {
             let contents = fs::read_to_string(src_path.clone())
@@ -97,7 +99,6 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
 
     // TODO: use a HashMap to prevent duplicate module names
     for (file, names) in files {
-        println!("cargo:rerun-if-changed={}", file.display());
         let module_name = file
             .as_path()
             .file_stem()
