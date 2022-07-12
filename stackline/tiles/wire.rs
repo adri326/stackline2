@@ -72,6 +72,10 @@ impl Tile for Diode {
         }
     }
 
+    fn accepts_signal(&self, direction: Direction) -> bool {
+        direction.opposite() != self.0
+    }
+
     fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
         let ch = match self.0 {
             Direction::Up => '^',

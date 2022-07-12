@@ -97,6 +97,7 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
 
     // TODO: use a HashMap to prevent duplicate module names
     for (file, names) in files {
+        println!("cargo:rerun-if-changed={}", file.display());
         let module_name = file
             .as_path()
             .file_stem()
