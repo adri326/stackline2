@@ -7,19 +7,30 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use std::io::Write;
 
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about)]
+struct Args {
+    #[clap(short, long, value_parser)]
+    file: Option<PathBuf>,
+}
+
 fn main() {
     let args = Args::parse();
 
-    // let mut world = World::new();
-    // let mut pane = Pane::empty(4, 4).unwrap();
-    // pane.set_tile((0, 0), FullTile::from(Wire::new(Orientation::Any)));
-    // world.set_pane(String::from("main"), pane);
-    // let raw = serde_json::to_string(&world).unwrap();
-    // std::fs::write(&args.file, &raw).unwrap();
-
-    let raw = std::fs::read_to_string(&args.file).expect(&format!("Couldn't open {}!", args.file.display()));
-
-    let mut world: World = serde_json::from_str(&raw).unwrap();
+    let mut world: World = if let Some(path) = &args.file {
+        match std::fs::read_to_string(path) {
+            Ok(raw) => {
+                serde_json::from_str(&raw).expect("Couldn't parse JSON")
+            }
+            Err(err) => {
+                eprintln!("Couldn't open {}: {}", path.display(), err);
+                return
+            }
+        }
+    } else {
+        World::new()
+    };
 
     loop {
         let mut line = String::new();
@@ -43,6 +54,20 @@ fn main() {
             Some("print") => {
                 print!("{}", world);
             }
+            Some("panes") => {
+                panes(&world);
+            }
+
+            Some("pane") => {
+                if let (Some(name), Some(x), Some(y), Some(width), Some(height)) = (tokens.next(), tokens.next(), tokens.next(), tokens.next(), tokens.next()) {
+                    if let (Ok(x), Ok(y), Ok(width), Ok(height)) = (x.parse(), y.parse(), width.parse(), height.parse()) {
+                        pane(&mut world, name, x, y, width, height);
+                    }
+                } else {
+                    eprintln!("Expected five arguments");
+                }
+            }
+
             Some("get") => {
                 if let (Some(x), Some(y)) = (tokens.next(), tokens.next()) {
                     if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
@@ -52,7 +77,6 @@ fn main() {
                     eprintln!("Expected two arguments");
                 }
             }
-
             Some("set") => {
                 if let (Some(x), Some(y), Some(name)) = (tokens.next(), tokens.next(), tokens.next()) {
                     if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
@@ -139,15 +163,39 @@ fn main() {
             Some("load") => {
                 if let Some(path) = tokens.next() {
                     load(&mut world, path);
+                } else if let Some(path) = &args.file {
+                    load(&mut world, path);
                 } else {
-                    load(&mut world, &args.file);
+                    eprintln!("No file given with the -f option!");
                 }
             }
             Some("save") => {
                 if let Some(path) = tokens.next() {
                     save(&world, path);
+                } else if let Some(path) = &args.file {
+                    save(&world, path);
                 } else {
-                    save(&world, &args.file);
+                    eprintln!("No file given with the -f option!");
+                }
+            }
+
+            Some("copy") => {
+                if let (Some(x), Some(y), Some(x2), Some(y2)) = (tokens.next(), tokens.next(), tokens.next(), tokens.next()) {
+                    if let (Ok(x), Ok(y), Ok(x2), Ok(y2)) = (x.parse(), y.parse(), x2.parse(), y2.parse()) {
+                        copy(&mut world, x, y, x2, y2);
+                    }
+                } else {
+                    eprintln!("Expected four arguments");
+                }
+            }
+            Some("move") => {
+                if let (Some(x), Some(y), Some(x2), Some(y2)) = (tokens.next(), tokens.next(), tokens.next(), tokens.next()) {
+                    if let (Ok(x), Ok(y), Ok(x2), Ok(y2)) = (x.parse(), y.parse(), x2.parse(), y2.parse()) {
+                        copy(&mut world, x, y, x2, y2);
+                        remove(&mut world, x, y);
+                    }
+                } else {
+                    eprintln!("Expected four arguments");
                 }
             }
 
@@ -179,13 +227,6 @@ fn main() {
             }
         }
     }
-}
-
-#[derive(Parser, Debug)]
-#[clap(author, version, about)]
-struct Args {
-    #[clap(short, long, value_parser)]
-    file: PathBuf,
 }
 
 fn run(world: &mut World, steps: usize) -> std::io::Result<()> {
@@ -501,5 +542,50 @@ fn load(world: &mut World, path: impl AsRef<Path>) {
         Err(err) => {
             eprintln!("Error while reading file: {}", err);
         }
+    }
+}
+
+fn copy(world: &mut World, x: i32, y: i32, x2: i32, y2: i32) {
+    let mut from: FullTile = match world.get((x, y)) {
+        Some(tile) => {
+            (*tile).clone()
+        }
+        None => {
+            eprintln!("No tile at {}:{}!", x, y);
+            return
+        }
+    };
+
+    // TODO: register signal in Pane::signals
+    match world.get_mut_with_pos((x2, y2)) {
+        Some((tile, x2, y2)) => {
+            if let Some(mut signal) = from.take_signal() {
+                signal.set_position((x2, y2));
+                from.set_signal(Some(signal));
+            }
+            *tile = from;
+        }
+        None => {
+            eprintln!("No tile at {}:{}!", x2, y2);
+        }
+    }
+}
+
+fn pane(world: &mut World, name: &str, x: i32, y: i32, width: usize, height: usize) {
+    let mut pane = match Pane::empty(width, height) {
+        Some(pane) => pane,
+        None => {
+            eprintln!("Invalid pane dimensions!");
+            return
+        }
+    };
+
+    pane.set_position((x, y));
+    world.set_pane(name.to_string(), pane);
+}
+
+fn panes(world: &World) {
+    for (name, pane) in world.panes() {
+        println!("- {}: {}x{}, at {}:{}", name, pane.width(), pane.height(), pane.position().0, pane.position().1);
     }
 }

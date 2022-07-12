@@ -133,6 +133,10 @@ impl World {
             )
         })
     }
+
+    pub fn panes(&self) -> &HashMap<String, Pane> {
+        &self.panes
+    }
 }
 
 impl std::fmt::Display for World {
