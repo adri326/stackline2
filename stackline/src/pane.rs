@@ -514,9 +514,7 @@ impl Pane {
             let x = x as i32 + dx + self.position.0 as i32;
             let y = y as i32 + dy + self.position.1 as i32;
 
-            if x >= 0 && y >= 0 {
-                tile.draw(x as usize, y as usize, surface);
-            }
+            tile.draw(x, y, surface);
         }
     }
 }

@@ -28,8 +28,8 @@ impl Tile for Teleporter {
         }
     }
 
-    fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
-        surface.set(x, y, TextChar::from_state('P', state));
+    fn draw_simple(&self, state: State) -> TextChar {
+        TextChar::from_state('P', state)
     }
 }
 
@@ -166,43 +166,61 @@ impl Tile for Sender {
 
     // TODO: read self.signals to determine the state of each char
     // TODO: automated test
-    fn draw(&self, x: usize, y: usize, _state: State, surface: &mut TextSurface) {
+    fn draw(&self, x: i32, y: i32, _state: State, surface: &mut TextSurface) {
         for (prev, next) in self.path.iter().zip(self.path.iter().skip(1)) {
             if prev.0 != next.0 {
                 // Draw the diode of the corner
                 let ch = if next.0 > prev.0 { '>' } else { '<' };
-                surface.set(
-                    (x as i32 + prev.0) as usize,
-                    (y as i32 + prev.1) as usize,
-                    TextChar::from_state(ch, State::Idle),
-                );
+                let x2 = x + prev.0;
+                let y2 = y + prev.1;
+
+                if x2 >= 0 && y2 >= 0 {
+                    surface.set(
+                        x2 as usize,
+                        y2 as usize,
+                        TextChar::from_state(ch, State::Idle),
+                    );
+                }
 
                 // Draw the horizontal line
 
                 for dx in (prev.0 + 1)..(next.0) {
-                    surface.set(
-                        (x as i32 + dx) as usize,
-                        (y as i32 + prev.1) as usize,
-                        TextChar::from_state('-', State::Idle),
-                    );
+                    let x2 = x + dx;
+                    let y2 = y + prev.1;
+                    if x2 >= 0 && y2 >= 0 {
+                        surface.set(
+                            x2 as usize,
+                            y2 as usize,
+                            TextChar::from_state('-', State::Idle),
+                        );
+                    }
                 }
             } else {
                 // Draw the diode of the corner
                 let ch = if next.1 > prev.1 { 'v' } else { '^' };
-                surface.set(
-                    (x as i32 + prev.0) as usize,
-                    (y as i32 + prev.1) as usize,
-                    TextChar::from_state(ch, State::Idle),
-                );
+                let x2 = x + prev.0;
+                let y2 = y + prev.1;
+
+                if x2 >= 0 && y2 >= 0 {
+                    surface.set(
+                        x2 as usize,
+                        y2 as usize,
+                        TextChar::from_state(ch, State::Idle),
+                    );
+                }
 
                 // Draw the vertical line
 
                 for dy in (prev.1 + 1)..(next.1) {
-                    surface.set(
-                        (y as i32 + prev.0) as usize,
-                        (y as i32 + dy) as usize,
-                        TextChar::from_state('|', State::Idle),
-                    );
+                    let x2 = x + prev.0;
+                    let y2 = y + dy;
+                    if x2 >= 0 && y2 >= 0 {
+                        surface.set(
+                            x2 as usize,
+                            y2 as usize,
+                            TextChar::from_state('-', State::Idle),
+                        );
+                    }
                 }
             }
         }
@@ -212,7 +230,7 @@ impl Tile for Sender {
 #[cfg(test)]
 mod test {
     use super::*;
-    use veccell::{VecRef, VecRefMut};
+    use veccell::{VecRef};
 
     #[test]
     fn test_teleporter_transmit_same_pane() {

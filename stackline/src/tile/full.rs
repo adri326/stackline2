@@ -88,7 +88,7 @@ impl FullTile {
 
     /// Draws itself on a [`TextSurface`] at `(x, y)`.
     /// If the tile is empty, does nothing
-    pub fn draw(&self, x: usize, y: usize, surface: &mut TextSurface) {
+    pub fn draw(&self, x: i32, y: i32, surface: &mut TextSurface) {
         match self.cell {
             Some(ref cell) => cell.draw(x, y, self.state, surface),
             None => {}

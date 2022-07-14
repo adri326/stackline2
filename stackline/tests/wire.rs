@@ -25,3 +25,14 @@ fn test_diode_loop() {
     run!(world, 4);
     assert_signal!(world, 1, 1);
 }
+
+#[test]
+fn test_display_oob() {
+    let world = load_test!("tests/wire/diode-loop.json");
+
+    println!("{}", world);
+
+    let mut surface = TextSurface::new(0, 0);
+    world.draw(0, 0, &mut surface);
+    world.draw(-1000, -1000, &mut surface);
+}

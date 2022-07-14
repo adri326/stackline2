@@ -156,51 +156,24 @@ pub trait Tile: std::clone::Clone + std::fmt::Debug + Serialize + for<'d> Deseri
 
     /// Should draw itself on a [`TextSurface`].
     /// The `Tile` is allowed to draw outside of its coordinates, although doing so might cause glitches.
+    ///
+    /// By default, draws a single character at the tile's location, determined by [`Tile::draw_simple`]
     // TODO: Use a 2d slice type
     #[inline]
     #[allow(unused_variables)]
-    fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
-        // noop
+    fn draw(&self, x: i32, y: i32, state: State, surface: &mut TextSurface) {
+        if let (Ok(x), Ok(y)) = (x.try_into(), y.try_into()) {
+            surface.set(x, y, self.draw_simple(state));
+        }
+    }
+
+    /// Used by the default implementation of `draw`,
+    #[inline]
+    #[allow(unused_variables)]
+    fn draw_simple(&self, state: State) -> TextChar {
+        TextChar::default()
     }
 }
-
-// #[derive(Debug)]
-// pub struct AnyTile(Box<dyn Tile>);
-
-// impl AnyTile {
-//     #[inline]
-//     pub fn new<T: Tile + 'static>(tile: T) -> Self {
-//         Self(Box::new(tile))
-//     }
-
-//     #[inline]
-//     pub fn update<'b>(&'b mut self, ctx: UpdateContext<'b>) {
-//         self.0.update(ctx)
-//     }
-
-//     #[inline]
-//     pub fn accepts_signal(&self, direction: Direction) -> bool {
-//         self.0.accepts_signal(direction)
-//     }
-
-//     #[inline]
-//     pub fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
-//         self.0.draw(x, y, state, surface);
-//     }
-// }
-
-// impl Clone for AnyTile {
-//     #[inline]
-//     fn clone(&self) -> Self {
-//         Self(clone_box(self.0.as_ref()))
-//     }
-// }
-
-// impl<T: Tile + 'static> From<T> for AnyTile {
-//     fn from(tile: T) -> AnyTile {
-//         AnyTile(Box::new(tile))
-//     }
-// }
 
 pub mod prelude {
     pub use crate::prelude::*;

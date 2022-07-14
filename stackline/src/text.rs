@@ -65,6 +65,7 @@ pub struct TextSurface {
 
 impl TextSurface {
     pub fn new(width: usize, height: usize) -> Self {
+        // TODO: return None if width or height don't fit in an i32
         Self {
             width,
             height,

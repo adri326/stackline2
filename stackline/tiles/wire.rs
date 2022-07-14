@@ -34,14 +34,14 @@ impl Tile for Wire {
         self.0.contains(direction)
     }
 
-    fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
+    fn draw_simple(&self, state: State) -> TextChar {
         let ch = match self.0 {
             Orientation::Horizontal => '-',
             Orientation::Vertical => '|',
             Orientation::Any => '+',
         };
 
-        surface.set(x, y, TextChar::from_state(ch, state));
+        TextChar::from_state(ch, state)
     }
 }
 
@@ -76,7 +76,7 @@ impl Tile for Diode {
         direction.opposite() != self.0
     }
 
-    fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
+    fn draw_simple(&self, state: State) -> TextChar {
         let ch = match self.0 {
             Direction::Up => '^',
             Direction::Down => 'v',
@@ -84,7 +84,7 @@ impl Tile for Diode {
             Direction::Right => '>',
         };
 
-        surface.set(x, y, TextChar::from_state(ch, state));
+        TextChar::from_state(ch, state)
     }
 }
 
@@ -121,7 +121,7 @@ impl Tile for Resistor {
         }
     }
 
-    fn draw(&self, x: usize, y: usize, state: State, surface: &mut TextSurface) {
+    fn draw_simple(&self, state: State) -> TextChar {
         let ch = match self.direction {
             Direction::Up => '\u{2191}',    // Upwards Arrow
             Direction::Down => '\u{2193}',  // Downwards Arrow
@@ -129,7 +129,7 @@ impl Tile for Resistor {
             Direction::Right => '\u{2192}', // Rightwards Arrow
         };
 
-        surface.set(x, y, TextChar::from_state(ch, state));
+        TextChar::from_state(ch, state)
     }
 }
 
