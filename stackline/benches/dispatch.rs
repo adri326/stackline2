@@ -18,29 +18,13 @@ fn benchmark_step(c: &mut Criterion) {
             pane.set_tile((3, n), Wire::new(Orientation::Vertical));
         }
 
-        pane.set_signal((0, 0), stackline::signal!(
-            (0, 0),
-            Direction::Right,
-            []
-        ));
+        pane.set_signal((0, 0), stackline::signal!((0, 0), Direction::Right, []));
 
-        pane.set_signal((3, 0), stackline::signal!(
-            (3, 0),
-            Direction::Down,
-            []
-        ));
+        pane.set_signal((3, 0), stackline::signal!((3, 0), Direction::Down, []));
 
-        pane.set_signal((3, 3), stackline::signal!(
-            (3, 3),
-            Direction::Left,
-            []
-        ));
+        pane.set_signal((3, 3), stackline::signal!((3, 3), Direction::Left, []));
 
-        pane.set_signal((0, 3), stackline::signal!(
-            (0, 3),
-            Direction::Up,
-            []
-        ));
+        pane.set_signal((0, 3), stackline::signal!((0, 3), Direction::Up, []));
 
         b.iter(|| pane.step());
     });

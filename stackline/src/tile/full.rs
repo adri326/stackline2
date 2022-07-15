@@ -1,5 +1,5 @@
 use super::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /** Represents a tile that may be empty and may have a signal. The tile may only have a signal if it isn't empty.
 Cloning a `FullTile` results in a `FullTile` that does not have any signal.
@@ -103,7 +103,8 @@ impl Default for FullTile {
 }
 
 impl<T: Tile + 'static> From<T> for FullTile
-where AnyTile: From<T>
+where
+    AnyTile: From<T>,
 {
     #[inline]
     fn from(tile: T) -> Self {

@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Represents one or many undirected orientation(s), since we are in a 2D grid,
 /// this may either be [Horizontal](Orientation::Horizontal), [Vertical](Orientation::Vertical) or both ([Any](Orientation::Any))
@@ -53,12 +53,13 @@ impl Orientation {
     /// Returns true iff `dir ∈ self`
     #[inline]
     pub fn contains(&self, dir: Direction) -> bool {
-        matches!((self, dir),
+        matches!(
+            (self, dir),
             (Orientation::Vertical, Direction::Up)
-            | (Orientation::Vertical, Direction::Down)
-            | (Orientation::Horizontal, Direction::Left)
-            | (Orientation::Horizontal, Direction::Right)
-            | (Orientation::Any, _)
+                | (Orientation::Vertical, Direction::Down)
+                | (Orientation::Horizontal, Direction::Left)
+                | (Orientation::Horizontal, Direction::Right)
+                | (Orientation::Any, _)
         )
     }
 }

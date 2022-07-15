@@ -6,7 +6,7 @@
 */
 use super::*;
 use enum_dispatch::enum_dispatch;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 mod full;
 pub use full::*;
@@ -177,10 +177,10 @@ pub trait Tile: std::clone::Clone + std::fmt::Debug + Serialize + for<'d> Deseri
 
 pub mod prelude {
     pub use crate::prelude::*;
-    pub use crate::tile::{FullTile, AnyTile};
     pub use crate::signal::Signal;
-    pub use crate::utils::State;
     pub use crate::text::*;
+    pub use crate::tile::{AnyTile, FullTile};
+    pub use crate::utils::State;
 
-    pub use serde::{Serialize, Deserialize};
+    pub use serde::{Deserialize, Serialize};
 }

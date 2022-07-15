@@ -1,6 +1,6 @@
 use super::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use veccell::{VecRef, VecRefMut};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,7 +38,11 @@ impl World {
         for pane in self.panes.values() {
             let x2 = x - pane.position().0;
             let y2 = y - pane.position().1;
-            if x2 >= 0 && x2 < pane.width().get() as i32 && y2 >= 0 && y2 < pane.height().get() as i32 {
+            if x2 >= 0
+                && x2 < pane.width().get() as i32
+                && y2 >= 0
+                && y2 < pane.height().get() as i32
+            {
                 let x2 = x2 as usize;
                 let y2 = y2 as usize;
                 if let Some(tile) = pane.get((x2, y2)) {
@@ -53,7 +57,11 @@ impl World {
         for pane in self.panes.values() {
             let x2 = x - pane.position().0;
             let y2 = y - pane.position().1;
-            if x2 >= 0 && x2 < pane.width().get() as i32 && y2 >= 0 && y2 < pane.height().get() as i32 {
+            if x2 >= 0
+                && x2 < pane.width().get() as i32
+                && y2 >= 0
+                && y2 < pane.height().get() as i32
+            {
                 let x2 = x2 as usize;
                 let y2 = y2 as usize;
                 if let Some(tile) = pane.get((x2, y2)) {
@@ -68,7 +76,11 @@ impl World {
         for pane in self.panes.values_mut() {
             let x2 = x - pane.position().0;
             let y2 = y - pane.position().1;
-            if x2 >= 0 && x2 < pane.width().get() as i32 && y2 >= 0 && y2 < pane.height().get() as i32 {
+            if x2 >= 0
+                && x2 < pane.width().get() as i32
+                && y2 >= 0
+                && y2 < pane.height().get() as i32
+            {
                 let x2 = x2 as usize;
                 let y2 = y2 as usize;
                 if let Some(tile) = pane.get_mut((x2, y2)) {
@@ -79,11 +91,18 @@ impl World {
         None
     }
 
-    pub fn get_mut_with_pos(&mut self, (x, y): (i32, i32)) -> Option<(&mut FullTile, usize, usize)> {
+    pub fn get_mut_with_pos(
+        &mut self,
+        (x, y): (i32, i32),
+    ) -> Option<(&mut FullTile, usize, usize)> {
         for pane in self.panes.values_mut() {
             let x2 = x - pane.position().0;
             let y2 = y - pane.position().1;
-            if x2 >= 0 && x2 < pane.width().get() as i32 && y2 >= 0 && y2 < pane.height().get() as i32 {
+            if x2 >= 0
+                && x2 < pane.width().get() as i32
+                && y2 >= 0
+                && y2 < pane.height().get() as i32
+            {
                 let x2 = x2 as usize;
                 let y2 = y2 as usize;
                 if let Some(tile) = pane.get_mut((x2, y2)) {
@@ -104,8 +123,7 @@ impl World {
 
     pub fn in_pane(&self, x: i32, y: i32) -> bool {
         for pane in self.panes.values() {
-            if
-                x >= pane.position().0
+            if x >= pane.position().0
                 && y >= pane.position().1
                 && x < pane.position().0 + pane.width().get() as i32
                 && y < pane.position().1 + pane.height().get() as i32

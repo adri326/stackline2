@@ -5,9 +5,10 @@ macro_rules! load_test {
         let raw = std::fs::read_to_string(&path).unwrap_or_else(|err| {
             panic!("Couldn't load {}: {}", &path, err);
         });
-        let world: stackline::prelude::World = serde_json::from_str(&raw).expect("Couldn't parse World");
+        let world: stackline::prelude::World =
+            serde_json::from_str(&raw).expect("Couldn't parse World");
         world
-    }}
+    }};
 }
 
 #[macro_export]
@@ -20,7 +21,7 @@ macro_rules! run {
         for _step in 0..$steps {
             $world.step();
         }
-    }
+    };
 }
 
 #[macro_export]
@@ -30,7 +31,13 @@ macro_rules! assert_signal {
             .get(($x, $y))
             .expect(&format!("Couldn't get tile at {}:{}", $x, $y));
         let signal = guard.signal();
-        assert!(signal.is_some(), "Expected signal at {}:{}!\n{}", $x, $y, $world);
+        assert!(
+            signal.is_some(),
+            "Expected signal at {}:{}!\n{}",
+            $x,
+            $y,
+            $world
+        );
         signal
     }};
 
@@ -47,6 +54,12 @@ macro_rules! assert_no_signal {
             .get(($x, $y))
             .expect(&format!("Couldn't get tile at {}:{}", $x, $y));
         let signal = guard.signal();
-        assert!(signal.is_none(), "Expected no signal at {}:{}!\n{}", $x, $y, $world);
+        assert!(
+            signal.is_none(),
+            "Expected no signal at {}:{}!\n{}",
+            $x,
+            $y,
+            $world
+        );
     }};
 }

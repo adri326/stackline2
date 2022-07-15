@@ -1,7 +1,7 @@
 use std::env;
+use std::fmt::Write;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::fmt::Write;
 use syn::{Item, ItemImpl, Type};
 
 // This script reads the contents of any rust file in the `tiles/` directory,
@@ -39,7 +39,8 @@ fn main() {
                 .unwrap_or_else(|err| panic!("Unable to parse file {:?}: {}", src_path, err));
 
             for item in syntax.items.iter() {
-                #[allow(clippy::single_match)] // I'd like to keep the match for future-proofing, for instance if I need to match for a macro call
+                #[allow(clippy::single_match)]
+                // I'd like to keep the match for future-proofing, for instance if I need to match for a macro call
                 match item {
                     Item::Impl(item) => {
                         if let Some(name) = parse_impl_tile(item) {
@@ -51,8 +52,9 @@ fn main() {
             }
 
             if !local_names.is_empty() {
-                let canonical = fs::canonicalize(src_path.clone())
-                    .unwrap_or_else(|err| panic!("Couldn't canonicalize {}: {}", src_path.display(), err));
+                let canonical = fs::canonicalize(src_path.clone()).unwrap_or_else(|err| {
+                    panic!("Couldn't canonicalize {}: {}", src_path.display(), err)
+                });
                 for name in local_names.iter() {
                     names.push(name.clone());
                 }
@@ -105,10 +107,9 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
             .as_path()
             .file_stem()
             .and_then(|x| x.to_str())
-            .unwrap_or_else(|| panic!(
-                "Couldn't extract valid UTF-8 filename from path {:?}",
-                file
-            ));
+            .unwrap_or_else(|| {
+                panic!("Couldn't extract valid UTF-8 filename from path {:?}", file)
+            });
         let path = file.as_path().to_str().expect("Invalid UTF-8 path");
 
         writeln!(res, "#[path = \"{}\"]\nmod {};", path, module_name).unwrap();
@@ -137,7 +138,12 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
     res += "        match name {\n";
 
     for name in names.iter() {
-        writeln!(res, "            \"{0}\" => Some(Self::{0}(<{0} as Default>::default())),", name).unwrap();
+        writeln!(
+            res,
+            "            \"{0}\" => Some(Self::{0}(<{0} as Default>::default())),",
+            name
+        )
+        .unwrap();
     }
 
     res += "            _ => None\n";
@@ -145,7 +151,8 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
 
     for name in names {
         // impl<T: Tile> TryInto<&T> for &AnyTile
-        writeln!(res,
+        writeln!(
+            res,
             concat!(
                 "impl<'a> TryInto<&'a {0}> for &'a AnyTile {{\n",
                 "    type Error = ();\n",
@@ -158,10 +165,12 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
                 "}}",
             ),
             name
-        ).unwrap();
+        )
+        .unwrap();
 
         // impl<T: Tile> TryInto<&mut T> for &mut AnyTile
-        writeln!(res,
+        writeln!(
+            res,
             concat!(
                 "impl<'a> TryInto<&'a mut {0}> for &'a mut AnyTile {{\n",
                 "    type Error = ();\n",
@@ -174,7 +183,8 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
                 "}}",
             ),
             name
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     res

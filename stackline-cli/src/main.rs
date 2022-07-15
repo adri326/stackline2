@@ -1,12 +1,11 @@
 #![feature(iter_intersperse)]
 
+use clap::Parser;
 use stackline::prelude::*;
 use stackline::tile::*;
-use clap::Parser;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::io::Write;
-
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
@@ -20,12 +19,10 @@ fn main() {
 
     let mut world: World = if let Some(path) = &args.file {
         match std::fs::read_to_string(path) {
-            Ok(raw) => {
-                serde_json::from_str(&raw).expect("Couldn't parse JSON")
-            }
+            Ok(raw) => serde_json::from_str(&raw).expect("Couldn't parse JSON"),
             Err(err) => {
                 eprintln!("Couldn't open {}: {}", path.display(), err);
-                return
+                return;
             }
         }
     } else {
@@ -63,8 +60,16 @@ fn main() {
             }
 
             Some("pane") => {
-                if let (Some(name), Some(x), Some(y), Some(width), Some(height)) = (tokens.next(), tokens.next(), tokens.next(), tokens.next(), tokens.next()) {
-                    if let (Ok(x), Ok(y), Ok(width), Ok(height)) = (x.parse(), y.parse(), width.parse(), height.parse()) {
+                if let (Some(name), Some(x), Some(y), Some(width), Some(height)) = (
+                    tokens.next(),
+                    tokens.next(),
+                    tokens.next(),
+                    tokens.next(),
+                    tokens.next(),
+                ) {
+                    if let (Ok(x), Ok(y), Ok(width), Ok(height)) =
+                        (x.parse(), y.parse(), width.parse(), height.parse())
+                    {
                         pane(&mut world, name, x, y, width, height);
                     }
                 } else {
@@ -82,7 +87,9 @@ fn main() {
                 }
             }
             Some("set") => {
-                if let (Some(x), Some(y), Some(name)) = (tokens.next(), tokens.next(), tokens.next()) {
+                if let (Some(x), Some(y), Some(name)) =
+                    (tokens.next(), tokens.next(), tokens.next())
+                {
                     if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                         set(&mut world, x, y, name);
                     }
@@ -100,16 +107,26 @@ fn main() {
                 }
             }
             Some("prop") => {
-                if let (Some(x), Some(y), Some(prop_name)) = (tokens.next(), tokens.next(), tokens.next()) {
+                if let (Some(x), Some(y), Some(prop_name)) =
+                    (tokens.next(), tokens.next(), tokens.next())
+                {
                     if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
-                        prop(&mut world, x, y, prop_name, tokens.intersperse(" ").collect());
+                        prop(
+                            &mut world,
+                            x,
+                            y,
+                            prop_name,
+                            tokens.intersperse(" ").collect(),
+                        );
                     }
                 } else {
                     eprintln!("Expected four arguments");
                 }
             }
             Some("state") => {
-                if let (Some(x), Some(y), Some(new_state)) = (tokens.next(), tokens.next(), tokens.next()) {
+                if let (Some(x), Some(y), Some(new_state)) =
+                    (tokens.next(), tokens.next(), tokens.next())
+                {
                     if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                         state(&mut world, x, y, new_state);
                     }
@@ -155,7 +172,9 @@ fn main() {
                 }
             }
             Some("dir") => {
-                if let (Some(x), Some(y), Some(direction)) = (tokens.next(), tokens.next(), tokens.next()) {
+                if let (Some(x), Some(y), Some(direction)) =
+                    (tokens.next(), tokens.next(), tokens.next())
+                {
                     if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                         dir(&mut world, x, y, direction);
                     }
@@ -184,8 +203,12 @@ fn main() {
             }
 
             Some("copy") => {
-                if let (Some(x), Some(y), Some(x2), Some(y2)) = (tokens.next(), tokens.next(), tokens.next(), tokens.next()) {
-                    if let (Ok(x), Ok(y), Ok(x2), Ok(y2)) = (x.parse(), y.parse(), x2.parse(), y2.parse()) {
+                if let (Some(x), Some(y), Some(x2), Some(y2)) =
+                    (tokens.next(), tokens.next(), tokens.next(), tokens.next())
+                {
+                    if let (Ok(x), Ok(y), Ok(x2), Ok(y2)) =
+                        (x.parse(), y.parse(), x2.parse(), y2.parse())
+                    {
                         copy(&mut world, x, y, x2, y2);
                     }
                 } else {
@@ -193,8 +216,12 @@ fn main() {
                 }
             }
             Some("move") => {
-                if let (Some(x), Some(y), Some(x2), Some(y2)) = (tokens.next(), tokens.next(), tokens.next(), tokens.next()) {
-                    if let (Ok(x), Ok(y), Ok(x2), Ok(y2)) = (x.parse(), y.parse(), x2.parse(), y2.parse()) {
+                if let (Some(x), Some(y), Some(x2), Some(y2)) =
+                    (tokens.next(), tokens.next(), tokens.next(), tokens.next())
+                {
+                    if let (Ok(x), Ok(y), Ok(x2), Ok(y2)) =
+                        (x.parse(), y.parse(), x2.parse(), y2.parse())
+                    {
                         copy(&mut world, x, y, x2, y2);
                         remove(&mut world, x, y);
                     }
@@ -207,12 +234,16 @@ fn main() {
                 println!("- `exit`: exits");
                 println!("- `print`: prints the current world");
                 println!("- `get <x> <y>`: prints the JSON-serialized data of the tile at (x, y)");
-                println!("- `set <x> <y> <tilename>`: sets the tile at (x, y) to a default tilename");
+                println!(
+                    "- `set <x> <y> <tilename>`: sets the tile at (x, y) to a default tilename"
+                );
                 println!("- `remove <x> <y>`: removes the tile at (x, y)");
                 println!("- `copy <x_from> <y_from> <x_to> <y_to>`: copies a tile");
                 println!("- `move <x_from> <y_from> <x_to> <y_to>`: moves a tile");
 
-                println!("- `prop <x> <y> <prop_name> [data]`: sets the property of the tile at (x, y)");
+                println!(
+                    "- `prop <x> <y> <prop_name> [data]`: sets the property of the tile at (x, y)"
+                );
                 println!("  if the tile is a single tuple struct, then prop_name is ignored.");
                 println!("  if the tile is a tuple struct, then prop_name should be the index of the property");
 
@@ -262,12 +293,10 @@ fn step(world: &mut World) {
 
 fn get(world: &World, x: i32, y: i32) {
     match world.get((x, y)) {
-        Some(tile) => {
-            match serde_json::to_string_pretty(&*tile) {
-                Ok(serialized) => println!("{}", serialized),
-                Err(err) => eprintln!("Error while serializing tile at {}:{}; {}", x, y, err),
-            }
-        }
+        Some(tile) => match serde_json::to_string_pretty(&*tile) {
+            Ok(serialized) => println!("{}", serialized),
+            Err(err) => eprintln!("Error while serializing tile at {}:{}; {}", x, y, err),
+        },
         None => {
             eprintln!("No tile at {}:{}!", x, y);
         }
@@ -283,7 +312,7 @@ fn prop(world: &mut World, x: i32, y: i32, prop_name: &str, value: String) {
                 tile
             } else {
                 eprintln!("Tile at {}:{} is empty!", x, y);
-                return
+                return;
             }
         }
         None => {
@@ -296,7 +325,7 @@ fn prop(world: &mut World, x: i32, y: i32, prop_name: &str, value: String) {
         Ok(serialized) => serialized,
         Err(err) => {
             eprintln!("Error while serializing tile at {}:{}; {}", x, y, err);
-            return
+            return;
         }
     };
 
@@ -304,10 +333,9 @@ fn prop(world: &mut World, x: i32, y: i32, prop_name: &str, value: String) {
         Ok(parsed) => parsed,
         Err(err) => {
             eprintln!("Error while parsing value: {}", err);
-            return
+            return;
         }
     };
-
 
     if let Value::Object(ref mut enum_map) = &mut tile_value {
         if let Some(enum_value) = enum_map.values_mut().next() {
@@ -318,8 +346,12 @@ fn prop(world: &mut World, x: i32, y: i32, prop_name: &str, value: String) {
                 Value::Array(vec) => {
                     if let Ok(num) = prop_name.parse::<usize>() {
                         if num >= vec.len() {
-                            eprintln!("Index out of bound: len is {} but index is {}", vec.len(), num);
-                            return
+                            eprintln!(
+                                "Index out of bound: len is {} but index is {}",
+                                vec.len(),
+                                num
+                            );
+                            return;
                         }
                         vec[num] = parsed;
                     }
@@ -330,11 +362,11 @@ fn prop(world: &mut World, x: i32, y: i32, prop_name: &str, value: String) {
             }
         } else {
             eprintln!("Format error: expected enum to be encoded as a single-element map.");
-            return
+            return;
         }
     } else {
         eprintln!("Format error: expected enum to be encoded as a single-element map.");
-        return
+        return;
     }
 
     match serde_json::from_value(tile_value) {
@@ -406,7 +438,7 @@ fn push(world: &mut World, x: i32, y: i32, value: String) {
         Ok(value) => value,
         Err(err) => {
             eprintln!("Error while parsing value: {}", err);
-            return
+            return;
         }
     };
 
@@ -416,28 +448,26 @@ fn push(world: &mut World, x: i32, y: i32, value: String) {
                 Value::Number(f)
             } else {
                 eprintln!("Unsupported value: {:?}", num);
-                return
+                return;
             }
         }
         JValue::String(s) => Value::String(s),
         x => {
             eprintln!("Unsupported value: {:?}", x);
-            return
+            return;
         }
     };
 
     match world.get_mut((x, y)) {
-        Some(tile) => {
-            match tile.take_signal() {
-                Some(mut signal) => {
-                    signal.push(value);
-                    tile.set_signal(Some(signal));
-                }
-                None => {
-                    eprintln!("No signal at {}:{}!", x, y);
-                }
+        Some(tile) => match tile.take_signal() {
+            Some(mut signal) => {
+                signal.push(value);
+                tile.set_signal(Some(signal));
             }
-        }
+            None => {
+                eprintln!("No signal at {}:{}!", x, y);
+            }
+        },
         None => {
             eprintln!("No tile at {}:{}!", x, y);
         }
@@ -446,28 +476,26 @@ fn push(world: &mut World, x: i32, y: i32, value: String) {
 
 fn pop(world: &mut World, x: i32, y: i32) {
     match world.get_mut((x, y)) {
-        Some(tile) => {
-            match tile.take_signal() {
-                Some(mut signal) => {
-                    let popped = signal.pop();
-                    tile.set_signal(Some(signal));
+        Some(tile) => match tile.take_signal() {
+            Some(mut signal) => {
+                let popped = signal.pop();
+                tile.set_signal(Some(signal));
 
-                    if let Some(popped) = popped {
-                        match serde_json::to_string_pretty(&popped) {
-                            Ok(pretty) => println!("{}", pretty),
-                            Err(err) => {
-                                eprintln!("Error while printing popped value: {}", err);
-                            }
+                if let Some(popped) = popped {
+                    match serde_json::to_string_pretty(&popped) {
+                        Ok(pretty) => println!("{}", pretty),
+                        Err(err) => {
+                            eprintln!("Error while printing popped value: {}", err);
                         }
-                    } else {
-                        eprintln!("Nothing to pop at {}:{}!", x, y);
                     }
-                }
-                None => {
-                    eprintln!("No signal at {}:{}!", x, y);
+                } else {
+                    eprintln!("Nothing to pop at {}:{}!", x, y);
                 }
             }
-        }
+            None => {
+                eprintln!("No signal at {}:{}!", x, y);
+            }
+        },
         None => {
             eprintln!("No tile at {}:{}!", x, y);
         }
@@ -479,21 +507,19 @@ fn dir(world: &mut World, x: i32, y: i32, direction: &str) {
         Ok(direction) => direction,
         Err(err) => {
             eprintln!("Error while parsing direction: {}", err);
-            return
+            return;
         }
     };
 
     match world.get_mut((x, y)) {
-        Some(tile) => {
-            match tile.take_signal() {
-                Some(signal) => {
-                    tile.set_signal(Some(signal.moved(direction)));
-                }
-                None => {
-                    eprintln!("No signal at {}:{}!", x, y);
-                }
+        Some(tile) => match tile.take_signal() {
+            Some(signal) => {
+                tile.set_signal(Some(signal.moved(direction)));
             }
-        }
+            None => {
+                eprintln!("No signal at {}:{}!", x, y);
+            }
+        },
         None => {
             eprintln!("No tile at {}:{}!", x, y);
         }
@@ -505,7 +531,7 @@ fn state(world: &mut World, x: i32, y: i32, state: &str) {
         Ok(state) => state,
         Err(err) => {
             eprintln!("Error while parsing state: {}", err);
-            return
+            return;
         }
     };
 
@@ -534,16 +560,14 @@ fn save(world: &World, path: impl AsRef<Path>) {
 
 fn load(world: &mut World, path: impl AsRef<Path>) {
     match std::fs::read_to_string(path.as_ref()) {
-        Ok(string) => {
-            match serde_json::from_str(&string) {
-                Ok(parsed) => {
-                    *world = parsed;
-                }
-                Err(err) => {
-                    eprintln!("Error while parsing file: {}", err);
-                }
+        Ok(string) => match serde_json::from_str(&string) {
+            Ok(parsed) => {
+                *world = parsed;
             }
-        }
+            Err(err) => {
+                eprintln!("Error while parsing file: {}", err);
+            }
+        },
         Err(err) => {
             eprintln!("Error while reading file: {}", err);
         }
@@ -552,12 +576,10 @@ fn load(world: &mut World, path: impl AsRef<Path>) {
 
 fn copy(world: &mut World, x: i32, y: i32, x2: i32, y2: i32) {
     let mut from: FullTile = match world.get((x, y)) {
-        Some(tile) => {
-            (*tile).clone()
-        }
+        Some(tile) => (*tile).clone(),
         None => {
             eprintln!("No tile at {}:{}!", x, y);
-            return
+            return;
         }
     };
 
@@ -581,7 +603,7 @@ fn pane(world: &mut World, name: &str, x: i32, y: i32, width: usize, height: usi
         Some(pane) => pane,
         None => {
             eprintln!("Invalid pane dimensions!");
-            return
+            return;
         }
     };
 
@@ -591,6 +613,13 @@ fn pane(world: &mut World, name: &str, x: i32, y: i32, width: usize, height: usi
 
 fn panes(world: &World) {
     for (name, pane) in world.panes() {
-        println!("- {}: {}x{}, at {}:{}", name, pane.width(), pane.height(), pane.position().0, pane.position().1);
+        println!(
+            "- {}: {}x{}, at {}:{}",
+            name,
+            pane.width(),
+            pane.height(),
+            pane.position().0,
+            pane.position().1
+        );
     }
 }

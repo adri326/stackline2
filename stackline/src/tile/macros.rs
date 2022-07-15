@@ -24,7 +24,9 @@ macro_rules! test_tile_setup {
 #[macro_export]
 macro_rules! test_set_signal {
     ( $pane:expr, $pos:expr, $dir:expr ) => {
-        $pane.set_signal($pos, crate::signal::Signal::empty($pos, $dir)).unwrap();
+        $pane
+            .set_signal($pos, crate::signal::Signal::empty($pos, $dir))
+            .unwrap();
     };
 }
 

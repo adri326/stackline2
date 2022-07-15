@@ -222,7 +222,10 @@ impl<'a> UpdateContext<'a> {
 
     /// Shortcut for calling both `ctx.offset(offset)` and `ctx.get(pos)`
     #[inline]
-    pub fn get_offset<'b>(&'b self, offset: (i8, i8)) -> Option<((usize, usize), VecRef<'b, FullTile>)>
+    pub fn get_offset<'b>(
+        &'b self,
+        offset: (i8, i8),
+    ) -> Option<((usize, usize), VecRef<'b, FullTile>)>
     where
         'a: 'b,
     {
@@ -284,7 +287,11 @@ impl<'a> UpdateContext<'a> {
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     /// See [`keep`](UpdateContext::keep) for a variant of this method that takes effect immediately.
-    pub fn force_send(&mut self, position: (usize, usize), mut signal: Signal) -> Result<(), SendError> {
+    pub fn force_send(
+        &mut self,
+        position: (usize, usize),
+        mut signal: Signal,
+    ) -> Result<(), SendError> {
         if !self.in_bounds(position) {
             return Err(SendError(signal));
         }
@@ -303,12 +310,16 @@ impl<'a> UpdateContext<'a> {
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     /// See [`keep`](UpdateContext::keep) for a variant of this method that takes effect immediately.
-    pub fn send(&mut self, position: (usize, usize), direction: Direction, signal: Signal) -> Result<(), SendError> {
+    pub fn send(
+        &mut self,
+        position: (usize, usize),
+        direction: Direction,
+        signal: Signal,
+    ) -> Result<(), SendError> {
         if self.accepts_signal(position, direction) {
             let original_direction = signal.direction();
-            self.force_send(position, signal.moved(direction)).map_err(|e| {
-                SendError(e.0.moved(original_direction))
-            })
+            self.force_send(position, signal.moved(direction))
+                .map_err(|e| SendError(e.0.moved(original_direction)))
         } else {
             Err(SendError(signal))
         }

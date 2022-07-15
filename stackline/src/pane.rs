@@ -1,6 +1,6 @@
 use super::*;
+use serde::{Deserialize, Serialize};
 use veccell::{VecCell, VecRef, VecRefMut};
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Pane {
@@ -257,10 +257,7 @@ impl Pane {
     /// This function does not need a mutable reference to `self`, and makes use
     /// of [`VecCell`]'s ability to provide interior mutability for one item at a time.
     #[inline]
-    pub(crate) fn borrow_mut(
-        &self,
-        position: (usize, usize),
-    ) -> Option<VecRefMut<'_, FullTile>> {
+    pub(crate) fn borrow_mut(&self, position: (usize, usize)) -> Option<VecRefMut<'_, FullTile>> {
         if !self.in_bounds(position) {
             return None;
         }
