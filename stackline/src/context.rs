@@ -65,22 +65,6 @@ pub struct UpdateContext<'a> {
 impl<'a> UpdateContext<'a> {
     /// Creates a new UpdateContext
     /// Returns `None` if the tile was already updated, is empty or does not exist.
-    #[ensures(
-        old(pane.get(position).is_none()) -> ret.is_none(),
-        "Should return None if the tile does not exist"
-    )]
-    #[ensures(
-        old(pane.get(position).is_some() && pane.get(position).unwrap().updated) -> ret.is_none(),
-        "Should return None if the tile was already updated"
-    )]
-    #[ensures(
-        old(pane.get(position).is_some() && (*pane.get(position).unwrap()).get().is_none()) -> ret.is_none(),
-        "Should return None if the tile is empty"
-    )]
-    #[ensures(
-        ret.is_some() -> ret.as_ref().unwrap().0.commit.updates.iter().find(|&&x| x == position).is_some(),
-        "Should add an entry in self.commit.updates if result is Some"
-    )]
     pub(crate) fn new<'b>(
         pane: &'b Pane,
         position: (usize, usize),
@@ -100,7 +84,7 @@ impl<'a> UpdateContext<'a> {
             position,
             state: tile.state(),
             signal: tile.take_signal(),
-            pane: pane,
+            pane,
             commit,
         };
 
@@ -178,7 +162,6 @@ impl<'a> UpdateContext<'a> {
     /// }
     /// ```
     #[inline]
-    #[ensures(self.signal.is_none(), "Should leave the signal to None")]
     pub fn take_signal(&mut self) -> Option<Signal> {
         std::mem::take(&mut self.signal)
     }
@@ -195,11 +178,6 @@ impl<'a> UpdateContext<'a> {
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     #[inline]
-    #[ensures(
-        self.commit.states.iter().find(|(x, y, _)| self.position == (*x, *y)).is_some(),
-        "Should add an entry in self.commit.states"
-    )]
-    #[ensures(self.state == state)]
     pub fn set_state(&mut self, state: State) {
         self.state = state;
         self.commit.set_state(self.position, self.state);
@@ -211,11 +189,6 @@ impl<'a> UpdateContext<'a> {
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     #[inline]
-    #[ensures(
-        self.commit.states.iter().find(|(x, y, _)| self.position == (*x, *y)).is_some(),
-        "Should add an entry in self.commit.states"
-    )]
-    #[ensures(self.state == old(self.state).next())]
     pub fn next_state(&mut self) {
         self.state = self.state.next();
         self.commit.set_state(self.position, self.state);
@@ -243,7 +216,6 @@ impl<'a> UpdateContext<'a> {
 
     /// Returns `true` iff `(x, y)` is within the bounds of the current pane.
     #[inline]
-    #[ensures(ret == true -> position.0 < self.width().get() && position.1 < self.height().get())]
     pub fn in_bounds(&self, position: (usize, usize)) -> bool {
         self.pane.in_bounds(position)
     }
@@ -261,7 +233,6 @@ impl<'a> UpdateContext<'a> {
     /// Returns whether or not the tile at `pos` accepts a signal coming from `direction`.
     /// If the tile does not exist, then this function will return `false`.
     #[inline]
-    #[ensures(ret == true -> self.get(pos).is_some() && (*self.get(pos).unwrap()).get().is_some())]
     pub fn accepts_signal(&self, pos: (usize, usize), direction: Direction) -> bool {
         match self.get(pos) {
             Some(tile) => tile.accepts_signal(direction),
@@ -313,15 +284,6 @@ impl<'a> UpdateContext<'a> {
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     /// See [`keep`](UpdateContext::keep) for a variant of this method that takes effect immediately.
-    #[ensures(
-        !self.in_bounds(position) -> ret.is_err(),
-        "Should return None if position is out of bounds"
-    )]
-    #[ensures(
-        ret.is_ok() -> self.commit.signals.iter().find(|(x, y, _)| position == (*x, *y)).is_some(),
-        "Should add an entry in self.commit.signals if result is Some"
-    )]
-    #[allow(unused_mut)]
     pub fn force_send(&mut self, position: (usize, usize), mut signal: Signal) -> Result<(), SendError> {
         if !self.in_bounds(position) {
             return Err(SendError(signal));
@@ -341,14 +303,6 @@ impl<'a> UpdateContext<'a> {
     ///
     /// The actions of this function will only be executed *after* all the tiles of the [`Pane`] were [`updated`](Pane::step).
     /// See [`keep`](UpdateContext::keep) for a variant of this method that takes effect immediately.
-    #[ensures(
-        !self.in_bounds(position) -> ret.is_err(),
-        "Should return None if position is out of bounds"
-    )]
-    #[ensures(
-        ret.is_ok() -> self.commit.signals.iter().find(|(x, y, _)| position == (*x, *y)).is_some(),
-        "Should add an entry in self.commit.signals if result is Some"
-    )]
     pub fn send(&mut self, position: (usize, usize), direction: Direction, signal: Signal) -> Result<(), SendError> {
         if self.accepts_signal(position, direction) {
             let original_direction = signal.direction();
@@ -394,13 +348,9 @@ impl<'a> UpdateContext<'a> {
     ///     }
     /// }
     /// ```
-    #[ensures(self.signal.is_none())]
     pub fn keep(&mut self) {
-        match std::mem::take(&mut self.signal) {
-            Some(signal) => {
-                self.commit.set_self_signal(Some(signal));
-            },
-            _ => {}
+        if let Some(signal) = std::mem::take(&mut self.signal) {
+            self.commit.set_self_signal(Some(signal));
         }
     }
 
@@ -513,11 +463,8 @@ impl UpdateCommit {
     /// Applies transformations on a FullTile before the end of the update phase
     #[inline]
     pub(crate) fn apply_immediate(&mut self, tile: &mut FullTile) {
-        match std::mem::take(&mut self.self_signal) {
-            Some(signal) => {
-                tile.set_signal(Some(signal));
-            }
-            None => {}
+        if let Some(signal) = std::mem::take(&mut self.self_signal) {
+            tile.set_signal(Some(signal));
         }
     }
 }

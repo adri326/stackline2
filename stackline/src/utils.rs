@@ -53,14 +53,13 @@ impl Orientation {
     /// Returns true iff `dir ∈ self`
     #[inline]
     pub fn contains(&self, dir: Direction) -> bool {
-        match (self, dir) {
-            (Orientation::Vertical, Direction::Up) => true,
-            (Orientation::Vertical, Direction::Down) => true,
-            (Orientation::Horizontal, Direction::Left) => true,
-            (Orientation::Horizontal, Direction::Right) => true,
-            (Orientation::Any, _) => true,
-            _ => false,
-        }
+        matches!((self, dir),
+            (Orientation::Vertical, Direction::Up)
+            | (Orientation::Vertical, Direction::Down)
+            | (Orientation::Horizontal, Direction::Left)
+            | (Orientation::Horizontal, Direction::Right)
+            | (Orientation::Any, _)
+        )
     }
 }
 
@@ -115,10 +114,7 @@ impl State {
 
     /// Returns true if `Idle`
     pub fn accepts_signal(self) -> bool {
-        match self {
-            State::Idle => true,
-            _ => false,
-        }
+        matches!(self, State::Idle)
     }
 }
 

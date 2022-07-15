@@ -157,9 +157,7 @@ impl Tile for Sender {
             }
         }
 
-        if context.state() == State::Active {
-            context.next_state();
-        } else if context.state() == State::Dormant && self.signals.len() == 0 {
+        if context.state() == State::Active || context.state() == State::Dormant && self.signals.is_empty() {
             context.next_state();
         }
     }
@@ -396,7 +394,7 @@ mod test {
             .get_as::<Sender>((0, 0))
             .unwrap();
 
-        assert!(sender.signals.len() == 0);
+        assert!(sender.signals.is_empty());
 
         assert_no_signal!(world.get_pane("main").unwrap(), (0, 0));
         assert_signal!(world.get_pane("main").unwrap(), (0, 2));

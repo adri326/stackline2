@@ -114,10 +114,8 @@ impl Tile for Resistor {
         if let Some(signal) = context.take_signal() {
             self.signal = Some(signal);
             context.set_state(State::Active);
-        } else {
-            if context.state() != State::Idle {
-                context.next_state();
-            }
+        } else if context.state() != State::Idle {
+            context.next_state();
         }
     }
 

@@ -48,19 +48,19 @@ impl FullTile {
 
     /// Returns the internal state of this full tile
     #[inline]
-    pub fn get<'b>(&'b self) -> Option<&'b AnyTile> {
+    pub fn get(&self) -> Option<&AnyTile> {
         self.cell.as_ref()
     }
 
     /// Returns a mutable reference to the internal state of this tile
     #[inline]
-    pub fn get_mut<'b>(&'b mut self) -> Option<&'b mut AnyTile> {
+    pub fn get_mut(&mut self) -> Option<&mut AnyTile> {
         self.cell.as_mut()
     }
 
     /// Returns the signal of this tile
     #[inline]
-    pub fn signal<'b>(&'b self) -> Option<&'b Signal> {
+    pub fn signal(&self) -> Option<&Signal> {
         self.signal.as_ref()
     }
 
@@ -89,9 +89,8 @@ impl FullTile {
     /// Draws itself on a [`TextSurface`] at `(x, y)`.
     /// If the tile is empty, does nothing
     pub fn draw(&self, x: i32, y: i32, surface: &mut TextSurface) {
-        match self.cell {
-            Some(ref cell) => cell.draw(x, y, self.state, surface),
-            None => {}
+        if let Some(cell) = &self.cell {
+            cell.draw(x, y, self.state, surface);
         }
     }
 }

@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::fmt::Write;
 use syn::{Item, ItemImpl, Type};
 
 // This script reads the contents of any rust file in the `tiles/` directory,
@@ -38,6 +39,7 @@ fn main() {
                 .unwrap_or_else(|err| panic!("Unable to parse file {:?}: {}", src_path, err));
 
             for item in syntax.items.iter() {
+                #[allow(clippy::single_match)] // I'd like to keep the match for future-proofing, for instance if I need to match for a macro call
                 match item {
                     Item::Impl(item) => {
                         if let Some(name) = parse_impl_tile(item) {
@@ -48,9 +50,9 @@ fn main() {
                 }
             }
 
-            if local_names.len() > 0 {
+            if !local_names.is_empty() {
                 let canonical = fs::canonicalize(src_path.clone())
-                    .expect(&format!("Couldn't canonicalize {:?}", src_path));
+                    .unwrap_or_else(|err| panic!("Couldn't canonicalize {}: {}", src_path.display(), err));
                 for name in local_names.iter() {
                     names.push(name.clone());
                 }
@@ -72,7 +74,7 @@ fn parse_impl_tile(item: &ItemImpl) -> Option<String> {
     let (_, trait_, _) = item.trait_.as_ref()?;
     let ident = trait_.get_ident()?;
 
-    if ident.to_string() == "Tile" {
+    if *ident == "Tile" {
         if let Type::Path(path) = &*item.self_ty {
             let name = path.path.get_ident().map(|i| i.to_string())?;
             return Some(name);
@@ -102,18 +104,17 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
         let module_name = file
             .as_path()
             .file_stem()
-            .map(|x| x.to_str())
-            .flatten()
-            .expect(&format!(
+            .and_then(|x| x.to_str())
+            .unwrap_or_else(|| panic!(
                 "Couldn't extract valid UTF-8 filename from path {:?}",
                 file
             ));
         let path = file.as_path().to_str().expect("Invalid UTF-8 path");
 
-        res += &format!("#[path = \"{}\"]\nmod {};\n", path, module_name);
-        res += &format!("pub use {}::{{", module_name);
+        writeln!(res, "#[path = \"{}\"]\nmod {};", path, module_name).unwrap();
+        write!(res, "pub use {}::{{", module_name).unwrap();
         for name in names {
-            res += &format!("{}, ", name);
+            write!(res, "{}, ", name).unwrap();
         }
         res += "};\n\n";
     }
@@ -125,7 +126,7 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
     res += "pub enum AnyTile {\n";
 
     for name in names.iter() {
-        res += &format!("    {0}({0}),\n", name);
+        writeln!(res, "    {0}({0}),", name).unwrap();
     }
     res += "}\n";
 
@@ -136,7 +137,7 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
     res += "        match name {\n";
 
     for name in names.iter() {
-        res += &format!("            \"{0}\" => Some(Self::{0}(<{0} as Default>::default())),\n", name);
+        writeln!(res, "            \"{0}\" => Some(Self::{0}(<{0} as Default>::default())),", name).unwrap();
     }
 
     res += "            _ => None\n";
@@ -144,7 +145,7 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
 
     for name in names {
         // impl<T: Tile> TryInto<&T> for &AnyTile
-        res += &format!(
+        writeln!(res,
             concat!(
                 "impl<'a> TryInto<&'a {0}> for &'a AnyTile {{\n",
                 "    type Error = ();\n",
@@ -154,13 +155,13 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
                 "            _ => Err(()),\n",
                 "        }}\n",
                 "    }}\n",
-                "}}\n",
+                "}}",
             ),
             name
-        );
+        ).unwrap();
 
         // impl<T: Tile> TryInto<&mut T> for &mut AnyTile
-        res += &format!(
+        writeln!(res,
             concat!(
                 "impl<'a> TryInto<&'a mut {0}> for &'a mut AnyTile {{\n",
                 "    type Error = ();\n",
@@ -170,10 +171,10 @@ fn generate_code(files: Vec<(PathBuf, Vec<String>)>, names: Vec<String>) -> Stri
                 "            _ => Err(()),\n",
                 "        }}\n",
                 "    }}\n",
-                "}}\n",
+                "}}",
             ),
             name
-        );
+        ).unwrap();
     }
 
     res

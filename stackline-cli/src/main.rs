@@ -337,11 +337,12 @@ fn prop(world: &mut World, x: i32, y: i32, prop_name: &str, value: String) {
         return
     }
 
-    *tile = match serde_json::from_value(tile_value) {
-        Ok(tile) => tile,
+    match serde_json::from_value(tile_value) {
+        Ok(t) => {
+            *tile = t;
+        }
         Err(err) => {
             eprintln!("Error while inserting value: {}", err);
-            return
         }
     };
 }
@@ -355,11 +356,12 @@ fn set(world: &mut World, x: i32, y: i32, name: &str) {
         }
     };
 
-    *tile = match AnyTile::new(name) {
-        Some(tile) => FullTile::from(tile),
+    match AnyTile::new(name) {
+        Some(t) => {
+            *tile = FullTile::from(t);
+        }
         None => {
             eprintln!("No tile named {}", name);
-            return;
         }
     };
 }
@@ -369,7 +371,6 @@ fn remove(world: &mut World, x: i32, y: i32) {
         Some(tile) => *tile = FullTile::new(None),
         None => {
             eprintln!("No tile at {}:{}!", x, y);
-            return;
         }
     }
 }
@@ -382,7 +383,6 @@ fn signal(world: &mut World, x: i32, y: i32) {
         }
         None => {
             eprintln!("No tile at {}:{}!", x, y);
-            return;
         }
     }
 }
@@ -395,7 +395,6 @@ fn clear(world: &mut World, x: i32, y: i32) {
         }
         None => {
             eprintln!("No tile at {}:{}!", x, y);
-            return;
         }
     }
 }
@@ -441,7 +440,6 @@ fn push(world: &mut World, x: i32, y: i32, value: String) {
         }
         None => {
             eprintln!("No tile at {}:{}!", x, y);
-            return;
         }
     }
 }
@@ -472,7 +470,6 @@ fn pop(world: &mut World, x: i32, y: i32) {
         }
         None => {
             eprintln!("No tile at {}:{}!", x, y);
-            return;
         }
     }
 }
@@ -499,7 +496,6 @@ fn dir(world: &mut World, x: i32, y: i32, direction: &str) {
         }
         None => {
             eprintln!("No tile at {}:{}!", x, y);
-            return;
         }
     }
 }
@@ -519,7 +515,6 @@ fn state(world: &mut World, x: i32, y: i32, state: &str) {
         }
         None => {
             eprintln!("No tile at {}:{}!", x, y);
-            return;
         }
     }
 }

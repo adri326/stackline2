@@ -36,8 +36,6 @@ impl Pane {
     /// // Perform a simulation step
     /// pane.step();
     /// ```
-    #[ensures(ret.is_some() -> width > 0)]
-    #[ensures(ret.is_some() -> height > 0)]
     pub fn empty(width: usize, height: usize) -> Option<Self> {
         // TODO: check that width * height is a valid usize
         let length = width.checked_mul(height)?;
@@ -120,10 +118,6 @@ impl Pane {
     /// assert_eq!(pane.offset((1, 0), (3, 0)), None); // (1 + 3, 0 + 0) = (4, 0), outside
     /// ```
     #[inline]
-    #[ensures(ret.is_some() -> position.0 as isize + offset.0 as isize >= 0)]
-    #[ensures(ret.is_some() -> position.1 as isize + offset.1 as isize >= 0)]
-    #[ensures(ret.is_some() -> position.0 as isize + (offset.0 as isize) < self.width.get() as isize)]
-    #[ensures(ret.is_some() -> position.1 as isize + (offset.1 as isize) < self.height.get() as isize)]
     pub fn offset(&self, position: (usize, usize), offset: (i8, i8)) -> Option<(usize, usize)> {
         if offset.0 < 0 && (-offset.0) as usize > position.0
             || offset.1 < 0 && (-offset.1) as usize > position.1
@@ -161,8 +155,7 @@ impl Pane {
     /// let tile = pane.get((0, 0)).unwrap();
     /// ```
     #[inline]
-    #[ensures(self.in_bounds(position) -> ret.is_some())]
-    pub fn get<'b>(&'b self, position: (usize, usize)) -> Option<VecRef<'b, FullTile>> {
+    pub fn get(&self, position: (usize, usize)) -> Option<VecRef<'_, FullTile>> {
         if !self.in_bounds(position) {
             return None;
         }
@@ -221,8 +214,7 @@ impl Pane {
     /// tile.set_state(State::Active);
     /// ```
     #[inline]
-    #[ensures(old(self.in_bounds(position)) -> ret.is_some())]
-    pub fn get_mut<'b>(&'b mut self, position: (usize, usize)) -> Option<&'b mut FullTile> {
+    pub fn get_mut(&mut self, position: (usize, usize)) -> Option<&mut FullTile> {
         if !self.in_bounds(position) {
             return None;
         }
@@ -252,7 +244,7 @@ impl Pane {
     /// *wire = Wire::new(Orientation::Vertical);
     /// ```
     #[inline]
-    pub fn get_mut_as<'b, T: Tile>(&'b mut self, position: (usize, usize)) -> Option<&'b mut T>
+    pub fn get_mut_as<T: Tile>(&mut self, position: (usize, usize)) -> Option<&mut T>
     where
         for<'c> &'c mut AnyTile: TryInto<&'c mut T>,
     {
@@ -265,10 +257,10 @@ impl Pane {
     /// This function does not need a mutable reference to `self`, and makes use
     /// of [`VecCell`]'s ability to provide interior mutability for one item at a time.
     #[inline]
-    pub(crate) fn borrow_mut<'b>(
-        &'b self,
+    pub(crate) fn borrow_mut(
+        &self,
         position: (usize, usize),
-    ) -> Option<VecRefMut<'b, FullTile>> {
+    ) -> Option<VecRefMut<'_, FullTile>> {
         if !self.in_bounds(position) {
             return None;
         }
@@ -303,7 +295,7 @@ impl Pane {
     /// *wire = Wire::new(Orientation::Vertical);
     /// ```
     #[inline]
-    pub fn borrow_mut_as<'b, T: Tile>(&'b self, position: (usize, usize)) -> Option<VecRefMut<'b, T>>
+    pub fn borrow_mut_as<T: Tile>(&self, position: (usize, usize)) -> Option<VecRefMut<'_, T>>
     where
         for<'c> &'c mut AnyTile: TryInto<&'c mut T>,
     {
@@ -318,7 +310,6 @@ impl Pane {
 
     /// Sets the tile at `position` to `tile`. `T` must either implement [`Tile`] or be `()`.
     #[inline]
-    #[ensures(self.in_bounds(position) -> ret.is_some())]
     pub fn set_tile<T>(&mut self, position: (usize, usize), tile: T) -> Option<()>
     where
         FullTile: From<T>,
@@ -353,9 +344,8 @@ impl Pane {
     /// assert_eq!(pane.get_state((0, 0)), Some(State::Dormant));
     /// ```
     #[inline]
-    #[ensures(self.in_bounds(position) -> ret.is_some())]
     pub fn get_state(&self, position: (usize, usize)) -> Option<State> {
-        self.get(position).map(|x| x.state().clone())
+        self.get(position).map(|x| x.state())
     }
 
     /// Sets the signal for the tile at `position` to `signal`.
@@ -384,9 +374,6 @@ impl Pane {
     /// assert!(pane.get((0, 0)).unwrap().signal().is_some());
     /// ```
     #[inline]
-    #[ensures(ret.is_some() -> self.in_bounds(position) && (*self.get(position).unwrap()).get().is_some())]
-    #[ensures(!self.in_bounds(position) -> ret.is_none())]
-    #[allow(unused_mut)]
     pub fn set_signal(&mut self, position: (usize, usize), mut signal: Signal) -> Option<()> {
         signal.set_position(position);
         if let Some(tile) = self.get_mut(position) {
@@ -418,15 +405,13 @@ impl Pane {
     }
 
     #[inline]
-    #[ensures(self.in_bounds(position) -> self.get(position).unwrap().updated)]
-    #[ensures(!self.in_bounds(position) -> ret.is_none())]
     fn update(&mut self, position: (usize, usize), commit: &mut UpdateCommit) -> Option<()> {
         // NOTE: Tiles will only be updated once as per UpdateContext::new
         let (ctx, mut tile) = UpdateContext::new(self, position, commit)?;
 
         (*tile).get_mut()?.update(ctx);
 
-        commit.apply_immediate(&mut *tile);
+        commit.apply_immediate(&mut tile);
 
         Some(())
     }
@@ -483,7 +468,7 @@ impl Pane {
     pub fn step(&mut self) -> PaneResult {
         let mut commit = UpdateCommit::new();
 
-        for position in std::mem::replace(&mut self.signals, Vec::new()) {
+        for position in std::mem::take(&mut self.signals) {
             let _ = self.update(position, &mut commit);
         }
 
@@ -500,11 +485,11 @@ impl Pane {
 
     /// Returns an iterator over the tiles and their coordinates
     #[inline]
-    pub fn tiles<'b>(&'b self) -> impl Iterator<Item = (usize, usize, VecRef<'b, FullTile>)> + 'b {
+    pub fn tiles(&self) -> impl Iterator<Item = (usize, usize, VecRef<'_, FullTile>)> + '_ {
         self.tiles
             .iter()
             .enumerate()
-            .filter_map(move |(i, v)| Some((i % self.width, i / self.width, v)))
+            .map(move |(i, v)| (i % self.width, i / self.width, v))
     }
 
     /// Draws the Pane at `(dx + self.position.0, dy + self.position.1)` on a [`TextSurface`].

@@ -34,7 +34,7 @@ impl World {
         self.panes.insert(name, pane);
     }
 
-    pub fn get<'b>(&'b self, (x, y): (i32, i32)) -> Option<VecRef<'b, FullTile>> {
+    pub fn get(&self, (x, y): (i32, i32)) -> Option<VecRef<'_, FullTile>> {
         for pane in self.panes.values() {
             let x2 = x - pane.position().0;
             let y2 = y - pane.position().1;
@@ -49,7 +49,7 @@ impl World {
         None
     }
 
-    pub fn get_with_pos<'b>(&'b self, (x, y): (i32, i32)) -> Option<(VecRef<'b, FullTile>, usize, usize)> {
+    pub fn get_with_pos(&self, (x, y): (i32, i32)) -> Option<(VecRef<'_, FullTile>, usize, usize)> {
         for pane in self.panes.values() {
             let x2 = x - pane.position().0;
             let y2 = y - pane.position().1;
@@ -64,7 +64,7 @@ impl World {
         None
     }
 
-    pub fn get_mut<'b>(&'b mut self, (x, y): (i32, i32)) -> Option<&'b mut FullTile> {
+    pub fn get_mut(&mut self, (x, y): (i32, i32)) -> Option<&mut FullTile> {
         for pane in self.panes.values_mut() {
             let x2 = x - pane.position().0;
             let y2 = y - pane.position().1;
@@ -79,7 +79,7 @@ impl World {
         None
     }
 
-    pub fn get_mut_with_pos<'b>(&'b mut self, (x, y): (i32, i32)) -> Option<(&'b mut FullTile, usize, usize)> {
+    pub fn get_mut_with_pos(&mut self, (x, y): (i32, i32)) -> Option<(&mut FullTile, usize, usize)> {
         for pane in self.panes.values_mut() {
             let x2 = x - pane.position().0;
             let y2 = y - pane.position().1;
@@ -94,11 +94,11 @@ impl World {
         None
     }
 
-    pub fn get_pane<'b>(&'b self, name: &str) -> Option<&'b Pane> {
+    pub fn get_pane(&self, name: &str) -> Option<&Pane> {
         self.panes.get(name)
     }
 
-    pub fn get_pane_mut<'b>(&'b mut self, name: &str) -> Option<&'b mut Pane> {
+    pub fn get_pane_mut(&mut self, name: &str) -> Option<&mut Pane> {
         self.panes.get_mut(name)
     }
 
@@ -152,6 +152,12 @@ impl std::fmt::Display for World {
         }
 
         <TextSurface as std::fmt::Display>::fmt(&surface, f)
+    }
+}
+
+impl Default for World {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

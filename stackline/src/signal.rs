@@ -24,7 +24,7 @@ impl Value {
 
 impl From<f64> for Value {
     fn from(x: f64) -> Value {
-        Value::Number(x.into())
+        Value::Number(x)
     }
 }
 
@@ -174,8 +174,13 @@ impl Signal {
     ///
     /// assert_eq!(signal.len(), 2);
     /// ```
+    #[allow(clippy::len_without_is_empty)] // The signal will hold a `heap` in the future, making `is_empty` ambiguous
     pub fn len(&self) -> usize {
         self.stack.len()
+    }
+
+    pub fn is_stack_empty(&self) -> bool {
+        self.stack.is_empty()
     }
 
     pub fn stack(&self) -> &Vec<Value> {

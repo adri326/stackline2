@@ -144,7 +144,7 @@ impl std::fmt::Display for TextSurface {
 
                 write!(f, "{}", string)?;
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
 
         Ok(())
